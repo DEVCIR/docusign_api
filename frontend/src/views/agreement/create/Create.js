@@ -13,7 +13,7 @@ import {
 import axios from 'axios'
 import mammoth from 'mammoth'
 import * as pdfjsLib from 'pdfjs-dist'
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiUrl } from 'src/components/Config/Config'
 import SendModal from 'src/views/document/SendModal'
@@ -28,8 +28,71 @@ import {
   FaCheck,
   FaPen,
 } from 'react-icons/fa'
+import { renderAsync } from 'docx-preview'
+import DocViewer, { DocViewerRenderers } from 'react-doc-viewer'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
+
+// Memoized Document Component
+const Document = memo(({ containerRef, fileType, docs, mainCanvasRef }) => {
+  // Memoize DocViewer to prevent unnecessary rerenders
+  const MemoizedDocViewer = memo(DocViewer)
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {fileType === 'pdf' && (
+        <canvas
+          ref={mainCanvasRef}
+          style={{
+            display: 'block',
+            width: '100%',
+            height: 'auto',
+            zIndex: 1,
+          }}
+        />
+      )}
+      {fileType === 'docx' && (
+        <>
+          <MemoizedDocViewer
+            documents={docs}
+            pluginRenderers={DocViewerRenderers}
+            theme={{ disableThemeScrollbar: false }}
+            style={{ height: '100%', overflow: 'hidden !important' }}
+            config={{
+              header: {
+                disableHeader: false,
+                disableFileName: false,
+                retainURLParams: false,
+              },
+            }}
+          />
+          <style>
+            {`
+            .hysiap {
+                overflow: hidden !important;
+            }
+
+            #proxy-renderer.hysiap {
+                overflow: hidden !important;
+            }
+            `}
+          </style>
+        </>
+      )}
+    </div>
+  )
+})
+
+const INITIAL_INPUT_SIZE = { width: 150, height: 30 }
+const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 }
+
+const clampBoxPosition = (box, containerWidth, containerHeight) => ({
+  ...box,
+  left: Math.max(0, Math.min(box.left, containerWidth - (box.width || INITIAL_INPUT_SIZE.width))),
+  top: Math.max(0, Math.min(box.top, containerHeight - (box.height || INITIAL_INPUT_SIZE.height))),
+  width: Math.min(box.width || INITIAL_INPUT_SIZE.width, containerWidth - box.left),
+  height: Math.min(box.height || INITIAL_INPUT_SIZE.height, containerHeight - box.top),
+})
 
 const Create = () => {
   const [searchParams] = useSearchParams()
@@ -62,6 +125,8 @@ const Create = () => {
   const fileInputRef = useRef(null)
   const renderedThumbnails = useRef({})
   const currentPageRef = useRef(null)
+
+  const [docs, setDocs] = useState([])
 
   const renderPDFPage = useCallback(async (page, canvas, width, height) => {
     if (!canvas) return
@@ -111,37 +176,47 @@ const Create = () => {
       const scaledViewport = page.getViewport({ scale })
 
       return (
-        <div
-          key={index}
-          onClick={() => {
-            if (currentPage !== index + 1) {
-              setPageToRender({
-                page,
-                pageNumber: index + 1,
-                containerWidth: containerRef.current?.offsetWidth,
-              })
-              setCurrentPage(index + 1)
-              setThumbnailForceUpdate((prev) => prev + 1)
+        <>
+          <style>
+            {`
+          #proxy-renderer.hysiap{
+          overflow: hidden !important;
+          overflow-y: hidden !important;
             }
-          }}
-          style={{
-            boxShadow: '0px 0px 3px rgba(0,0,0,0.5)',
-            margin: '5px',
-            cursor: 'pointer',
-            width: 'fit-content',
-            backgroundColor: currentPage === index + 1 ? '#e9ecef' : 'transparent',
-          }}
-        >
-          <canvas
-            ref={(node) => {
-              if (node) {
-                renderPDFPage(page, node, scaledViewport.width, scaledViewport.height)
+        `}
+          </style>
+          <div
+            key={index}
+            onClick={() => {
+              if (currentPage !== index + 1) {
+                setPageToRender({
+                  page,
+                  pageNumber: index + 1,
+                  containerWidth: containerRef.current?.offsetWidth,
+                })
+                setCurrentPage(index + 1)
+                setThumbnailForceUpdate((prev) => prev + 1)
               }
             }}
-            style={{ width: '100px', height: 'auto' }}
-          />
-          <div style={{ textAlign: 'center' }}>Page {index + 1}</div>
-        </div>
+            style={{
+              boxShadow: '0px 0px 3px rgba(0,0,0,0.5)',
+              margin: '5px',
+              cursor: 'pointer',
+              width: 'fit-content',
+              backgroundColor: currentPage === index + 1 ? '#e9ecef' : 'transparent',
+            }}
+          >
+            <canvas
+              ref={(node) => {
+                if (node) {
+                  renderPDFPage(page, node, scaledViewport.width, scaledViewport.height)
+                }
+              }}
+              style={{ width: '100px', height: 'auto' }}
+            />
+            <div style={{ textAlign: 'center' }}>Page {index + 1}</div>
+          </div>
+        </>
       )
     },
     [renderPDFPage, currentPage],
@@ -215,10 +290,133 @@ const Create = () => {
       fileInputRef.current.value = ''
     }
   }
+  const [isCanvasReady, setIsCanvasReady] = useState(false)
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0]
+  // const handleFileChange = async ( event ) =>
+  // {
+  //   const file = event.target.files[ 0 ]
+  //   const fileType = file.name.split( '.' ).pop().toLowerCase()
+
+  //   if ( fileType === 'pdf' )
+  //   {
+  //     setFileType( 'pdf' )
+  //   } else if ( fileType === 'docx' )
+  //   {
+  //     setUploadedFile( true );
+  //     setIsCanvasReady( true );
+  //     setFileType( 'docx' )
+  //   }
+
+  //   if ( !file || ( fileType !== 'pdf' && fileType !== 'docx' ) )
+  //   {
+  //     toast.error( 'Please upload a valid PDF or DOCX file.', {
+  //       duration: 3000,
+  //       position: 'top-right',
+  //     } )
+  //     reset()
+  //     return
+  //   }
+  //   const nameWithoutExtension = file.name.split( '.' ).slice( 0, -1 ).join( '.' )
+  //   setFileName( nameWithoutExtension )
+  //   setDocumentName( nameWithoutExtension )
+  //   setModalVisible( true )
+  //   if ( fileType === 'pdf' )
+  //   {
+  //     setFileType( 'pdf' )
+  //     loadPDF( file )
+  //   } else if ( fileType === 'docx' )
+  //   {
+  //     try
+  //     {
+  //       const getdocurl = await getDocUrl();
+  //       const newDoc = { uri: `${apiUrl}/public/storage/${getdocurl}` };
+  //       // console.log(newDoc)
+  //       setDocs( [ newDoc ] );
+  //       setUploadedFile( true );
+  //     } catch ( error )
+  //     {
+  //       toast.error( 'Failed to load document' );
+  //     }
+  //   }
+  // }
+
+  // // Make the getDocUrl function return a Promise
+  // const getDocUrl = async () =>
+  // {
+  //   const formData = new FormData();
+  //   const fileInput = fileInputRef.current;
+  //   formData.append( 'file', fileInput.files[ 0 ] );
+
+  //   try
+  //   {
+  //     const response = await axios.post(
+  //       type ? `${apiUrl}/api/upload-file2` : `${apiUrl}/api/upload-file2`,
+  //       formData,
+  //       { headers: { 'Content-Type': 'multipart/form-data' } }
+  //     );
+  //     console.log( response.data );
+  //     return response.data.document; // return the document URL
+  //   } catch ( error )
+  //   {
+  //     if ( error.response && error.response.status === 409 )
+  //     {
+  //       toast.error( 'File already exists' );
+  //     } else
+  //     {
+  //       toast.error( 'Something went wrong' );
+  //     }
+  //     throw error; // rethrow the error so it can be caught in handleFileChange
+  //   }
+  // };
+
+  // const loadPDF = ( file ) =>
+  // {
+  //   const reader = new FileReader()
+  //   reader.onload = async ( e ) =>
+  //   {
+  //     try
+  //     {
+  //       const typedArray = new Uint8Array( e.target.result )
+  //       const loadedPDF = await pdfjsLib.getDocument( typedArray ).promise
+  //       setPdfDocument( loadedPDF )
+  //       setDocumentPageCount( loadedPDF.numPages )
+  //       const pagePromises = []
+  //       for ( let pageNum = 1; pageNum <= loadedPDF.numPages; pageNum++ )
+  //       {
+  //         pagePromises.push( loadedPDF.getPage( pageNum ) )
+  //       }
+  //       const pages = await Promise.all( pagePromises )
+  //       setPdfPages( pages )
+  //     } catch ( error )
+  //     {
+  //       console.error( 'Error loading PDF:', error )
+  //       toast.error( 'Failed to load PDF. Please try again.' )
+  //     }
+  //   }
+  //   reader.readAsArrayBuffer( file )
+  // }
+
+  const handleFileChange = async (event) => {
+    let file = event.target.files[0]
+    let file2 = ''
     const fileType = file.name.split('.').pop().toLowerCase()
+
+    if (fileType === 'pdf') {
+      setFileType('pdf')
+    } else if (fileType === 'docx') {
+      setUploadedFile(true)
+      try {
+        const getdocurl = await getDocUrl()
+        file2 = `${apiUrl}/public/storage/${getdocurl}`
+        // file2 = `https://apidocusign.devcir.co/public/storage/documents/1739811305.pdf`;
+      } catch (error) {
+        toast.error('Failed to load document')
+      }
+
+      setIsCanvasReady(true)
+      setFileType('pdf')
+    }
+
     if (!file || (fileType !== 'pdf' && fileType !== 'docx')) {
       toast.error('Please upload a valid PDF or DOCX file.', {
         duration: 3000,
@@ -235,8 +433,59 @@ const Create = () => {
       setFileType('pdf')
       loadPDF(file)
     } else if (fileType === 'docx') {
-      setFileType('docx')
-      loadDOCX(file)
+      loadPDFFromURL(file2)
+    }
+  }
+
+  // Make the getDocUrl function return a Promise
+  const getDocUrl = async () => {
+    const formData = new FormData()
+    const fileInput = fileInputRef.current
+    formData.append('file', fileInput.files[0])
+
+    try {
+      const response = await axios.post(
+        type ? `${apiUrl}/api/upload-file2` : `${apiUrl}/api/upload-file2`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      )
+      console.log(response.data)
+      return response.data.pdf // return the document URL
+    } catch (error) {
+      if (error.response && error.response.status === 409) {
+        toast.error('File already exists')
+      } else {
+        toast.error('Something went wrong')
+      }
+      throw error // rethrow the error so it can be caught in handleFileChange
+    }
+  }
+
+  const loadPDFFromURL = async (url) => {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error('Failed to fetch the PDF from the URL')
+      }
+
+      const arrayBuffer = await response.arrayBuffer()
+      const typedArray = new Uint8Array(arrayBuffer)
+
+      // Load the PDF document from the typed array
+      const loadedPDF = await pdfjsLib.getDocument(typedArray).promise
+      setPdfDocument(loadedPDF)
+      setDocumentPageCount(loadedPDF.numPages)
+
+      const pagePromises = []
+      for (let pageNum = 1; pageNum <= loadedPDF.numPages; pageNum++) {
+        pagePromises.push(loadedPDF.getPage(pageNum))
+      }
+
+      const pages = await Promise.all(pagePromises)
+      setPdfPages(pages)
+    } catch (error) {
+      console.error('Error loading PDF from URL:', error)
+      toast.error('Failed to load PDF from URL. Please try again.')
     }
   }
 
@@ -264,150 +513,262 @@ const Create = () => {
 
   const loadDOCX = (file) => {
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const arrayBuffer = e.target.result
-      mammoth.convertToHtml({ arrayBuffer }).then((resultObject) => {
-        setDocxContent(resultObject.value)
-        setDocumentPageCount(1)
-      })
+
+      try {
+        const container = document.createElement('div') // Temporary container to hold DOCX content
+
+        // Extract text and images using mammoth
+        const { value: text, messages } = await mammoth.extractRawText({ arrayBuffer })
+
+        // Create an off-screen canvas to calculate the content dimensions
+        const offScreenCanvas = document.createElement('canvas')
+        const offScreenCtx = offScreenCanvas.getContext('2d')
+        offScreenCtx.font = '16px Arial' // Default text font size
+
+        // Split the DOCX text into lines and render text to off-screen canvas
+        const textLines = text.split('\n')
+        let currentY = 0
+
+        // Calculate the height required for text
+        textLines.forEach((line) => {
+          offScreenCtx.fillText(line, 0, currentY)
+          currentY += 20 // Line height adjustment
+        })
+
+        // Handle images (if any) within the DOCX
+        const { value: html } = await mammoth.convertToHtml({ arrayBuffer })
+        container.innerHTML = html // Render DOCX content into HTML
+
+        // Process images within the DOCX and draw them onto the off-screen canvas
+        const imagePromises = Array.from(container.querySelectorAll('img')).map((img) => {
+          return new Promise((resolve) => {
+            const image = new Image()
+            image.onload = () => {
+              offScreenCanvas.width = Math.max(offScreenCanvas.width, img.width)
+              offScreenCanvas.height = img.height + currentY
+              offScreenCtx.drawImage(image, 0, currentY)
+              currentY += image.height
+              resolve()
+            }
+            image.src = img.src
+          })
+        })
+
+        await Promise.all(imagePromises)
+
+        // Convert the off-screen canvas to an image
+        const imageUrl = offScreenCanvas.toDataURL('image/png')
+
+        // Now draw this image on the main canvas
+        const canvas = document.querySelector('#mainCanvasRef')
+        const ctx = canvas.getContext('2d')
+
+        if (!ctx) {
+          console.error('Canvas context not available')
+          toast.error('Failed to load DOCX. Please try again.')
+          return
+        }
+
+        // Clear the canvas before drawing
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+        // Create an image element to render the off-screen canvas image
+        const docImage = new Image()
+        docImage.onload = () => {
+          // Calculate scale to fit the canvas
+          const scaleX = canvas.width / docImage.width
+          const scaleY = canvas.height / docImage.height
+          const scale = Math.min(scaleX, scaleY) // Use the smaller scale factor
+
+          // Apply scaling and draw the image onto the canvas
+          ctx.scale(scale, scale)
+          ctx.drawImage(docImage, 0, 0)
+        }
+        docImage.src = imageUrl
+      } catch (error) {
+        console.error('Error loading DOCX:', error)
+        toast.error('Failed to load DOCX. Please try again.')
+      }
     }
     reader.readAsArrayBuffer(file)
   }
 
-  const handleMouseDown = (index, type) => (e) => {
+  const handleMouseDown = (index, type, page) => (e) => {
     e.preventDefault()
-    const box =
-      type === 'input' ? inputBoxes[currentPage][index] : signatureBoxes[currentPage][index]
-    const isFocused =
-      focusedBox &&
-      focusedBox.index === index &&
-      focusedBox.type === type &&
-      focusedBox.page === currentPage
+    if (e.target.type === 'checkbox' || e.target.classList.contains('close-button')) return
+
+    const isResizeHandle = e.target.classList.contains('resize-handle')
+    const resizeDirection = isResizeHandle ? e.target.dataset.direction : null
+
+    if (isResizeHandle) {
+      const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index]
+      const containerRect = containerRef.current.getBoundingClientRect()
+
+      setDraggedElement({
+        index,
+        type,
+        page,
+        isResizing: true,
+        resizeDirection,
+        startWidth: box.width || INITIAL_INPUT_SIZE.width,
+        startHeight: box.height || INITIAL_INPUT_SIZE.height,
+        startX: e.clientX - containerRect.left,
+        startY: e.clientY - containerRect.top,
+      })
+      setDragging(true)
+      return
+    }
 
     const containerRect = containerRef.current.getBoundingClientRect()
-    const clickX = e.clientX - containerRect.left
-    const clickY = e.clientY - containerRect.top
-
-    const newLeft = isFocused ? clickX - 25 : box.left
-    const newTop = isFocused ? clickY - 25 : box.top
-
-    if (isFocused) {
-      const updatedBoxes =
-        type === 'input' ? [...inputBoxes[currentPage]] : [...signatureBoxes[currentPage]]
-      updatedBoxes[index] = { ...box, left: newLeft, top: newTop }
-      if (type === 'input') {
-        setInputBoxes((prevBoxes) => ({
-          ...prevBoxes,
-          [currentPage]: updatedBoxes,
-        }))
-      } else {
-        setSignatureBoxes((prevBoxes) => ({
-          ...prevBoxes,
-          [currentPage]: updatedBoxes,
-        }))
-      }
-    }
+    const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index]
 
     setDraggedElement({
       index,
       type,
-      offsetX: 25,
-      offsetY: 25,
-      isFocused,
+      page,
+      startX: e.clientX - containerRect.left - box.left,
+      startY: e.clientY - containerRect.top - box.top,
     })
     setDragging(true)
-    setStartPosition({ x: e.clientX, y: e.clientY })
+    setFocusedBox({ index, type, page })
   }
 
-  const handleMouseMove = (e) => {
-    if (!dragging || !draggedElement) return
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (!dragging || !draggedElement || !containerRef.current) return
 
-    const containerRect = containerRef.current.getBoundingClientRect()
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const containerWidth = containerRect.width
+      const containerHeight = containerRect.height
+      const currentX = e.clientX - containerRect.left
+      const currentY = e.clientY - containerRect.top
 
-    const newLeft = e.clientX - containerRect.left - draggedElement.offsetX
-    const newTop = e.clientY - containerRect.top - draggedElement.offsetY
+      const box =
+        draggedElement.type === 'input'
+          ? inputBoxes[draggedElement.page][draggedElement.index]
+          : signatureBoxes[draggedElement.page][draggedElement.index]
 
-    const maxLeft = containerRect.width - 50
-    const maxTop = containerRect.height - 50
+      if (draggedElement.isResizing) {
+        const deltaX = currentX - draggedElement.startX
+        const deltaY = currentY - draggedElement.startY
+        const updatedBoxes =
+          draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
+        const newBox = { ...box }
 
-    const boundedLeft = Math.max(0, Math.min(newLeft, maxLeft))
-    const boundedTop = Math.max(0, Math.min(newTop, maxTop))
+        switch (draggedElement.resizeDirection) {
+          case 'se':
+            newBox.width = Math.max(50, draggedElement.startWidth + deltaX)
+            newBox.height = Math.max(30, draggedElement.startHeight + deltaY)
+            break
+          case 'sw':
+            newBox.width = Math.max(50, draggedElement.startWidth - deltaX)
+            // newBox.left = draggedElement.startLeft + deltaX;
+            newBox.height = Math.max(30, draggedElement.startHeight + deltaY)
+            break
+          case 'ne':
+            newBox.width = Math.max(50, draggedElement.startWidth + deltaX)
+            newBox.height = Math.max(30, draggedElement.startHeight - deltaY)
+            // newBox.top = draggedElement.startTop + deltaY;
+            break
+          case 'nw':
+            newBox.width = Math.max(50, draggedElement.startWidth - deltaX)
+            newBox.height = Math.max(30, draggedElement.startHeight - deltaY)
+            // newBox.left = draggedElement.startLeft + deltaX;
+            // newBox.top = draggedElement.startTop + deltaY;
+            break
+        }
 
-    const updatedBoxes =
-      draggedElement.type === 'input'
-        ? [...inputBoxes[currentPage]]
-        : [...signatureBoxes[currentPage]]
-    updatedBoxes[draggedElement.index] = {
-      ...updatedBoxes[draggedElement.index],
-      top: boundedTop,
-      left: boundedLeft,
-    }
-
-    if (draggedElement.type === 'input') {
-      setInputBoxes((prevBoxes) => ({
-        ...prevBoxes,
-        [currentPage]: updatedBoxes,
-      }))
-    } else {
-      setSignatureBoxes((prevBoxes) => ({
-        ...prevBoxes,
-        [currentPage]: updatedBoxes,
-      }))
-    }
-  }
-
-  const handleMouseUp = (index, type) => (e) => {
-    e.preventDefault()
-    if (dragging && draggedElement) {
-      const dx = Math.abs(e.clientX - startPosition.x)
-      const dy = Math.abs(e.clientY - startPosition.y)
-      const threshold = 5
-
-      if (dx <= threshold && dy <= threshold) {
-        setFocusedBox((prevFocus) =>
-          prevFocus?.index === index && prevFocus?.type === type && prevFocus?.page === currentPage
-            ? null
-            : { index, type, page: currentPage },
+        updatedBoxes[draggedElement.page][draggedElement.index] = clampBoxPosition(
+          newBox,
+          containerWidth,
+          containerHeight,
         )
+
+        if (draggedElement.type === 'input') {
+          setInputBoxes(updatedBoxes)
+        } else {
+          setSignatureBoxes(updatedBoxes)
+        }
+      } else {
+        const newLeft = currentX - draggedElement.startX
+        const newTop = currentY - draggedElement.startY
+
+        const updatedBoxes =
+          draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
+        updatedBoxes[draggedElement.page][draggedElement.index] = clampBoxPosition(
+          {
+            ...box,
+            left: newLeft,
+            top: newTop,
+          },
+          containerWidth,
+          containerHeight,
+        )
+
+        if (draggedElement.type === 'input') {
+          setInputBoxes(updatedBoxes)
+        } else {
+          setSignatureBoxes(updatedBoxes)
+        }
       }
-    }
+    },
+    [dragging, draggedElement, inputBoxes, signatureBoxes],
+  )
+
+  const handleMouseUp = useCallback(() => {
     setDragging(false)
     setDraggedElement(null)
     setStartPosition(null)
-  }
+  }, [])
 
   const addInputBox = (fieldType) => {
     const newPage = currentPage
+    const containerWidth = containerRef.current?.offsetWidth || 800
+    const containerHeight = containerRef.current?.offsetHeight || 600
+
     setInputBoxes((prevBoxes) => ({
       ...prevBoxes,
       [newPage]: [
         ...(prevBoxes[newPage] || []),
-        {
-          top: 100,
-          left: 50,
-          id: (prevBoxes[newPage] || []).length,
-          fieldType,
-          required: false,
-          page: newPage,
-        },
+        clampBoxPosition(
+          {
+            fieldType,
+            top: 100,
+            left: 100,
+            page: newPage,
+            required: false,
+            ...INITIAL_INPUT_SIZE,
+          },
+          containerWidth,
+          containerHeight,
+        ),
       ],
     }))
   }
 
   const addSignatureBox = (fieldType) => {
     const newPage = currentPage
+    const containerWidth = containerRef.current?.offsetWidth || 800
+    const containerHeight = containerRef.current?.offsetHeight || 600
+
     setSignatureBoxes((prevBoxes) => ({
       ...prevBoxes,
       [newPage]: [
         ...(prevBoxes[newPage] || []),
-        {
-          top: 200,
-          left: 50,
-          id: (prevBoxes[newPage] || []).length,
-          fieldType,
-          page: newPage,
-          required: false,
-        },
+        clampBoxPosition(
+          {
+            fieldType,
+            top: 100,
+            left: 100,
+            page: newPage,
+            required: false,
+            ...INITIAL_SIGNATURE_SIZE,
+          },
+          containerWidth,
+          containerHeight,
+        ),
       ],
     }))
   }
@@ -465,8 +826,21 @@ const Create = () => {
     formData.append('file', fileInput.files[0])
     formData.append('document_name', documentName)
 
-    const allInputBoxes = Object.values(inputBoxes).flat()
-    const allSignatureBoxes = Object.values(signatureBoxes).flat()
+    // Collect all input and signature boxes with their expanded states
+    const allInputBoxes = Object.values(inputBoxes)
+      .flat()
+      .map((box) => ({
+        ...box,
+        top: box.top, // Ensure expanded state is sent
+        left: box.left, // Ensure expanded state is sent
+      }))
+    const allSignatureBoxes = Object.values(signatureBoxes)
+      .flat()
+      .map((box) => ({
+        ...box,
+        top: box.top, // Ensure expanded state is sent
+        left: box.left, // Ensure expanded state is sent
+      }))
 
     formData.append('input_boxes', JSON.stringify(allInputBoxes))
     formData.append('signature_boxes', JSON.stringify(allSignatureBoxes))
@@ -524,23 +898,23 @@ const Create = () => {
   const renderBoxes = (boxType) => {
     const boxes =
       boxType === 'input' ? inputBoxes[currentPage] || [] : signatureBoxes[currentPage] || []
+
     return boxes.map((box, index) => {
       const isDraggingThisBox =
         dragging && draggedElement?.index === index && draggedElement?.type === boxType
       const isFocused =
-        focusedBox &&
-        focusedBox.index === index &&
-        focusedBox.type === boxType &&
-        focusedBox.page === currentPage
-      const showIcon = isDraggingThisBox || !isFocused
+        focusedBox?.index === index &&
+        focusedBox?.type === boxType &&
+        focusedBox?.page === currentPage
+      const showIcon = (isDraggingThisBox && !draggedElement?.isResizing) || !isFocused
+      const initialSize = boxType === 'input' ? INITIAL_INPUT_SIZE : INITIAL_SIGNATURE_SIZE
 
       const boxStyle = {
         position: 'absolute',
         top: `${box.top}px`,
         left: `${box.left}px`,
-        maxWidth: boxType === 'input' && !showIcon ? '350px' : '200px',
-        width: showIcon ? '50px' : undefined,
-        height: showIcon ? '50px' : undefined,
+        width: showIcon ? '50px' : `${box.width || initialSize.width}px`,
+        height: showIcon ? '50px' : `${box.height || initialSize.height}px`,
         cursor: isDraggingThisBox ? 'grabbing' : 'grab',
         zIndex: isDraggingThisBox ? 1000 : isFocused ? 100 : 10,
         border: boxType === 'signature' && !showIcon ? '1px solid black' : '1px dashed gray',
@@ -551,6 +925,9 @@ const Create = () => {
         userSelect: 'none',
         transition: isDraggingThisBox ? 'none' : 'all 0.2s ease',
         opacity: isDraggingThisBox ? 0.9 : 1,
+        minWidth: initialSize.width + 'px',
+        minHeight: initialSize.height + 'px',
+        borderRadius: '8px',
       }
 
       return (
@@ -558,17 +935,12 @@ const Create = () => {
           key={index}
           className={boxType === 'input' && !showIcon ? 'bg-white p-2 rounded shadow-sm' : ''}
           style={boxStyle}
-          onMouseDown={handleMouseDown(index, boxType)}
-          onMouseUp={handleMouseUp(index, boxType)}
-          onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget)) {
-              setFocusedBox(null)
-            }
-          }}
+          onMouseDown={handleMouseDown(index, boxType, currentPage)}
+          onMouseUp={handleMouseUp}
           tabIndex={0}
         >
           <span
-            className="fs-3 text-secondary text-end cursor-pointer"
+            className="fs-3 text-secondary text-end cursor-pointer close-button"
             onClick={(e) => {
               e.stopPropagation()
               removeBox(index, boxType, currentPage)
@@ -580,16 +952,82 @@ const Create = () => {
               lineHeight: '0.5',
               marginBottom: '10px',
               cursor: 'pointer',
+              zIndex: 1001,
+              pointerEvents: 'auto',
             }}
           >
             ×
           </span>
+
+          {isFocused && (
+            <>
+              <div
+                className="resize-handle"
+                data-direction="nw"
+                style={{
+                  position: 'absolute',
+                  left: -4,
+                  top: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nwse-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
+                data-direction="ne"
+                style={{
+                  position: 'absolute',
+                  right: -4,
+                  top: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nesw-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
+                data-direction="sw"
+                style={{
+                  position: 'absolute',
+                  left: -4,
+                  bottom: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nesw-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
+                data-direction="se"
+                style={{
+                  position: 'absolute',
+                  right: -4,
+                  bottom: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nwse-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+            </>
+          )}
+
           {showIcon ? (
-            <div style={{ fontSize: '30px' }}>{getIconForFieldType(box.fieldType)}</div>
-          ) : boxType === 'input' ? (
+            <div className="w-100 h-100 d-flex align-items-center justify-content-center">
+              {getIconForFieldType(box.fieldType)}
+            </div>
+          ) : (
             <div
               className="position-relative mt-2 text-secondary w-100"
-              onMouseDown={(e) => e.stopPropagation()}
+              style={{ pointerEvents: 'auto' }}
             >
               {box.fieldType === 'checkbox' ? (
                 <label className="form-check-label">
@@ -607,37 +1045,6 @@ const Create = () => {
                   onMouseDown={(e) => e.stopPropagation()}
                 />
               )}
-              <div className="d-flex flex-row gap-3 mt-2 justify-content-center w-100">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  checked={box.required || false}
-                  onChange={(e) => {
-                    e.stopPropagation()
-                    toggleRequired(index, boxType, currentPage)
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <p className="fs-6 text-muted mb-0">Required</p>
-              </div>
-            </div>
-          ) : (
-            <div
-              style={{ width: '100%', height: '100px', padding: '5px' }}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <canvas
-                width="180"
-                height="80"
-                style={{
-                  width: '100%',
-                  height: '35%',
-                  border: '1px dashed #ccc',
-                  borderRadius: '4px',
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-              />
               <div className="d-flex flex-row gap-3 mt-2 justify-content-center w-100">
                 <input
                   type="checkbox"
@@ -728,6 +1135,95 @@ const Create = () => {
     }
   }
 
+  // Add useEffect for global mouse events with resize handling
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (dragging) {
+        setDragging(false)
+        setDraggedElement(null)
+        setStartPosition(null)
+      }
+    }
+
+    const handleGlobalMouseMove = (e) => {
+      if (dragging && draggedElement) {
+        if (draggedElement.isResizing) {
+          handleResize(e)
+        } else {
+          handleMouseMove(e)
+        }
+      }
+    }
+
+    window.addEventListener('mousemove', handleGlobalMouseMove)
+    window.addEventListener('mouseup', handleGlobalMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove)
+      window.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [dragging, draggedElement, handleMouseMove])
+
+  // Add handleResize function
+  const handleResize = (e) => {
+    if (!containerRef.current || !draggedElement) return
+
+    const containerRect = containerRef.current.getBoundingClientRect()
+    const containerWidth = containerRect.width
+    const containerHeight = containerRect.height
+
+    const box =
+      draggedElement.type === 'input'
+        ? inputBoxes[draggedElement.page][draggedElement.index]
+        : signatureBoxes[draggedElement.page][draggedElement.index]
+
+    const currentX = e.clientX - containerRect.left
+    const currentY = e.clientY - containerRect.top
+
+    const updatedBoxes = draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
+
+    const newBox = { ...box }
+    const originalRight = box.left + box.width
+    const originalBottom = box.top + box.height
+
+    switch (draggedElement.resizeDirection) {
+      case 'nw':
+        newBox.left = Math.min(currentX, originalRight - INITIAL_INPUT_SIZE.width)
+        newBox.top = Math.min(currentY, originalBottom - INITIAL_INPUT_SIZE.height)
+        newBox.width = originalRight - newBox.left
+        newBox.height = originalBottom - newBox.top
+        break
+      case 'ne':
+        newBox.width = Math.max(INITIAL_INPUT_SIZE.width, currentX - box.left)
+        newBox.top = Math.min(currentY, originalBottom - INITIAL_INPUT_SIZE.height)
+        newBox.height = originalBottom - newBox.top
+        break
+      case 'sw':
+        newBox.left = Math.min(currentX, originalRight - INITIAL_INPUT_SIZE.width)
+        newBox.height = Math.max(INITIAL_INPUT_SIZE.height, currentY - box.top)
+        newBox.width = originalRight - newBox.left
+        break
+      case 'se':
+        newBox.width = Math.max(INITIAL_INPUT_SIZE.width, currentX - box.left)
+        newBox.height = Math.max(INITIAL_INPUT_SIZE.height, currentY - box.top)
+        break
+    }
+
+    // Apply constraints
+    newBox.left = Math.max(0, Math.min(newBox.left, containerWidth - newBox.width))
+    newBox.top = Math.max(0, Math.min(newBox.top, containerHeight - newBox.height))
+    newBox.width = Math.min(newBox.width, containerWidth - newBox.left)
+    newBox.height = Math.min(newBox.height, containerHeight - newBox.top)
+
+    updatedBoxes[draggedElement.page][draggedElement.index] = newBox
+
+    if (draggedElement.type === 'input') {
+      setInputBoxes(updatedBoxes)
+    } else {
+      setSignatureBoxes(updatedBoxes)
+    }
+  }
+
   return (
     <CContainer>
       <Toaster />
@@ -787,7 +1283,7 @@ const Create = () => {
                 backgroundColor: '#f9f9f9',
                 marginRight: '20px',
                 boxShadow: '0px 0px 5px rgb(65 26 70)',
-                overflow: 'auto',
+                overflow: 'scroll',
               }}
               onMouseMove={handleMouseMove}
               onClick={(e) => {
@@ -796,29 +1292,12 @@ const Create = () => {
                 }
               }}
             >
-              {fileType === 'pdf' && (
-                <canvas
-                  ref={mainCanvasRef}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    height: 'auto',
-                    zIndex: 1,
-                  }}
-                />
-              )}
-              {fileType === 'docx' && (
-                <div
-                  style={{
-                    position: 'relative',
-                    width: '100%',
-                    height: '100%',
-                    padding: '20px',
-                    overflowY: 'auto',
-                  }}
-                  dangerouslySetInnerHTML={{ __html: docxContent }}
-                />
-              )}
+              <Document
+                containerRef={containerRef}
+                fileType={fileType}
+                docs={docs}
+                mainCanvasRef={mainCanvasRef}
+              />
               {renderBoxes('input')}
               {renderBoxes('signature')}
             </div>

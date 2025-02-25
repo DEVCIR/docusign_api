@@ -16,7 +16,7 @@ import * as pdfjsLib from 'pdfjs-dist'
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiUrl } from 'src/components/Config/Config'
-import SendModal from 'src/views/document/SendModal'
+// import SendModal from 'src/views/document/SendModal'
 import { toast, Toaster } from 'sonner'
 import {
   FaUser,
@@ -1060,13 +1060,13 @@ const getDocUrl = async () => {
           </div>
         </div>
       )}
-      <SendModal
+      {/* <SendModal
         isVisible={sendModalVisible}
         onClose={() => setSendModalVisible(false)}
         document={currentDocument}
         onSendToUser={handleSendToUser}
         onSendViaEmail={handleSendViaEmail}
-      />
+      /> */}
     </CContainer>
   )
 }

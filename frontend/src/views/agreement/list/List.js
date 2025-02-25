@@ -37,6 +37,9 @@ import mammoth from 'mammoth'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
+const INITIAL_INPUT_SIZE = { width: 150, height: 30 };
+const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 };
+
 const renderPDFPage = async (page, canvas, width, height) => {
   try {
     const viewport = page.getViewport({ scale: 1 })
@@ -55,6 +58,14 @@ const renderPDFPage = async (page, canvas, width, height) => {
     console.error('Error rendering PDF page:', error)
   }
 }
+
+const clampBoxPosition = (box, containerWidth, containerHeight) => ({
+  ...box,
+  left: Math.max(0, Math.min(box.left, containerWidth - (box.width || INITIAL_INPUT_SIZE.width))),
+  top: Math.max(0, Math.min(box.top, containerHeight - (box.height || INITIAL_INPUT_SIZE.height))),
+  width: Math.min(box.width || INITIAL_INPUT_SIZE.width, containerWidth - box.left),
+  height: Math.min(box.height || INITIAL_INPUT_SIZE.height, containerHeight - box.top),
+})
 
 const List = () => {
   const [searchParams] = useSearchParams()
@@ -206,8 +217,21 @@ const List = () => {
 
   const handleUpdate = async () => {
     try {
-      const allInputBoxes = Object.values(inputBoxes).flat()
-      const allSignatureBoxes = Object.values(signatureBoxes).flat()
+      const allInputBoxes = Object.entries(inputBoxes).flatMap(([page, boxes]) =>
+        boxes.map((box) => ({
+          ...box,
+          page: parseInt(page),
+          isExpanded: undefined,
+        })),
+      )
+
+      const allSignatureBoxes = Object.entries(signatureBoxes).flatMap(([page, boxes]) =>
+        boxes.map((box) => ({
+          ...box,
+          page: parseInt(page),
+          isExpanded: undefined,
+        })),
+      )
 
       const updatedData = {
         document_name: formData.title,
@@ -215,6 +239,7 @@ const List = () => {
         signature_boxes: JSON.stringify(allSignatureBoxes),
         type: type || null,
       }
+
       await axios.post(`${apiUrl}/api/documents/${currentDocument.id}/editDocument`, updatedData)
       await fetchDocuments()
       setEditModalVisible(false)
@@ -316,7 +341,6 @@ const List = () => {
   const loadPDF = async (path) => {
     try {
       const pdfUrl = `${apiUrl}/public/storage/${path}`
-      console.log('Loading PDF from:', pdfUrl)
       const loadingTask = pdfjsLib.getDocument(pdfUrl)
       const pdf = await loadingTask.promise
       setPdfDocument(pdf)
@@ -328,10 +352,31 @@ const List = () => {
       const pages = await Promise.all(pagePromises)
       setPdfPages(pages)
       setPdfLoaded(true)
+
+      const containerWidth = containerRef.current.offsetWidth
+      const containerHeight = containerRef.current.offsetHeight
+
+      // Clamp existing boxes to container
+      setInputBoxes((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([page, boxes]) => [
+            page,
+            boxes.map((box) => clampBoxPosition(box, containerWidth, containerHeight)),
+          ]),
+        ),
+      )
+
+      setSignatureBoxes((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([page, boxes]) => [
+            page,
+            boxes.map((box) => clampBoxPosition(box, containerWidth, containerHeight)),
+          ]),
+        ),
+      )
     } catch (error) {
       console.error('Error loading PDF:', error)
       toast.error('Error loading PDF document', { duration: 3000, position: 'top-right' })
-      setPdfLoaded(false)
     }
   }
 
@@ -375,27 +420,179 @@ const List = () => {
 
   const handleMouseDown = (index, type, page) => (e) => {
     e.preventDefault()
+    // Check if the click is on the checkbox or close button
+    if (e.target.type === 'checkbox' || e.target.classList.contains('close-button')) {
+      return
+    }
     const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index]
-    setDraggedElement({ index, type, page })
-    setDragging(true)
+    const isFocused =
+      focusedBox &&
+      focusedBox.index === index &&
+      focusedBox.type === type &&
+      focusedBox.page === page
+
     const containerRect = containerRef.current.getBoundingClientRect()
-    setStartPosition({
-      x: e.clientX - containerRect.left - box.left,
-      y: e.clientY - containerRect.top - box.top,
+    const clickX = e.clientX - containerRect.left
+    const clickY = e.clientY - containerRect.top
+
+    // Check if resizing
+    const isResizeHandle = e.target.classList.contains('resize-handle')
+    const resizeDirection = isResizeHandle ? e.target.dataset.direction : null
+
+    if (isResizeHandle && isFocused) {
+      setDraggedElement({
+        index,
+        type,
+        page,
+        isResizing: true,
+        resizeDirection,
+        startWidth: box.width || 150,
+        startHeight: box.height || 30,
+        startX: clickX,
+        startY: clickY,
+      })
+      setDragging(true)
+      return
+    }
+
+    if (isFocused) {
+      const updatedBoxes = type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
+      updatedBoxes[page][index] = {
+        ...box,
+        left: clickX - 25,
+        top: clickY - 25,
+      }
+
+      if (type === 'input') {
+        setInputBoxes(updatedBoxes)
+      } else {
+        setSignatureBoxes(updatedBoxes)
+      }
+    }
+
+    setDraggedElement({
+      index,
+      type,
+      page,
+      offsetX: 25,
+      offsetY: 25,
+      isFocused,
     })
+    setDragging(true)
+    setStartPosition({ x: e.clientX, y: e.clientY })
   }
 
   const handleMouseMove = (e) => {
     if (!dragging || !draggedElement) return
 
     const containerRect = containerRef.current.getBoundingClientRect()
+    const containerWidth = containerRect.width
+    const containerHeight = containerRect.height
+
     const box =
       draggedElement.type === 'input'
         ? inputBoxes[draggedElement.page][draggedElement.index]
         : signatureBoxes[draggedElement.page][draggedElement.index]
 
-    let newLeft = e.clientX - containerRect.left - startPosition.x
-    let newTop = e.clientY - containerRect.top - startPosition.y
+    // Handle resizing
+    if (draggedElement.isResizing) {
+      const currentX = e.clientX - containerRect.left
+      const currentY = e.clientY - containerRect.top
+
+      const updatedBoxes =
+        draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
+      const newBox = { ...box }
+
+      // Store original right and bottom positions
+      const originalRight = box.left + box.width
+      const originalBottom = box.top + box.height
+
+      switch (draggedElement.resizeDirection) {
+        case 'nw': // Top-left
+          {
+            // Calculate new dimensions based on mouse position
+            const newLeft = Math.min(currentX, originalRight - 50)
+            const newTop = Math.min(currentY, originalBottom - 30)
+            const newWidth = originalRight - newLeft
+            const newHeight = originalBottom - newTop
+
+            // Apply new dimensions if they meet minimum requirements
+            if (newWidth >= 50) {
+              newBox.left = newLeft
+              newBox.width = newWidth
+            }
+            if (newHeight >= 30) {
+              newBox.top = newTop
+              newBox.height = newHeight
+            }
+          }
+          break
+
+        case 'ne': // Top-right
+          {
+            const newRight = Math.max(currentX, box.left + 50)
+            const newTop = Math.min(currentY, originalBottom - 30)
+            const newWidth = newRight - box.left
+            const newHeight = originalBottom - newTop
+
+            if (newWidth >= 50) {
+              newBox.width = newWidth
+            }
+            if (newHeight >= 30) {
+              newBox.top = newTop
+              newBox.height = newHeight
+            }
+          }
+          break
+
+        case 'sw': // Bottom-left
+          {
+            const newLeft = Math.min(currentX, originalRight - 50)
+            const newBottom = Math.max(currentY, box.top + 30)
+            const newWidth = originalRight - newLeft
+            const newHeight = newBottom - box.top
+
+            if (newWidth >= 50) {
+              newBox.left = newLeft
+              newBox.width = newWidth
+            }
+            if (newHeight >= 30) {
+              newBox.height = newHeight
+            }
+          }
+          break
+
+        case 'se': // Bottom-right
+          {
+            const newWidth = Math.max(50, currentX - box.left)
+            const newHeight = Math.max(30, currentY - box.top)
+            newBox.width = newWidth
+            newBox.height = newHeight
+          }
+          break
+
+        default:
+          break
+      }
+
+      // Final position constraints with container bounds
+      newBox.left = Math.max(0, Math.min(newBox.left, containerWidth - newBox.width))
+      newBox.top = Math.max(0, Math.min(newBox.top, containerHeight - newBox.height))
+      newBox.width = Math.min(newBox.width, containerWidth - newBox.left)
+      newBox.height = Math.min(newBox.height, containerHeight - newBox.top)
+
+      updatedBoxes[draggedElement.page][draggedElement.index] = newBox
+
+      if (draggedElement.type === 'input') {
+        setInputBoxes(updatedBoxes)
+      } else {
+        setSignatureBoxes(updatedBoxes)
+      }
+      return
+    }
+
+    let newLeft = e.clientX - containerRect.left - draggedElement.offsetX
+    let newTop = e.clientY - containerRect.top - draggedElement.offsetY
 
     const maxLeft = containerRect.width - 50
     const maxTop = containerRect.height - 50
@@ -413,47 +610,88 @@ const List = () => {
     }
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (index, type, page) => (e) => {
+    e.preventDefault()
+    // Check if the click is on the checkbox or close button
+    if (e.target.type === 'checkbox' || e.target.classList.contains('close-button')) {
+      return
+    }
+    if (dragging && draggedElement) {
+      // Clear resize state first
+      if (draggedElement.isResizing) {
+        setDraggedElement(null)
+        setDragging(false)
+        setStartPosition(null)
+        return
+      }
+
+      // Existing click handling logic
+      const dx = Math.abs(e.clientX - startPosition.x)
+      const dy = Math.abs(e.clientY - startPosition.y)
+      const threshold = 5
+
+      if (dx <= threshold && dy <= threshold) {
+        setFocusedBox((prevFocus) =>
+          prevFocus?.index === index && prevFocus?.type === type && prevFocus?.page === page
+            ? null
+            : { index, type, page },
+        )
+      }
+    }
     setDragging(false)
     setDraggedElement(null)
     setStartPosition(null)
   }
 
   const addInputBox = (fieldType) => {
-    const newPage = currentPage
+    const newPage = currentPage;
+    const containerWidth = containerRef.current.offsetWidth;
+    const containerHeight = containerRef.current.offsetHeight;
+
     setInputBoxes((prevBoxes) => ({
       ...prevBoxes,
       [newPage]: [
         ...(prevBoxes[newPage] || []),
-        {
-          fieldType,
-          top: 100,
-          left: 100,
-          page: newPage,
-          required: false,
-          isExpanded: false,
-        },
+        clampBoxPosition(
+          {
+            fieldType,
+            top: 100,
+            left: 100,
+            page: newPage,
+            required: false,
+            ...INITIAL_INPUT_SIZE,
+          },
+          containerWidth,
+          containerHeight
+        ),
       ],
-    }))
-  }
+    }));
+  };
 
   const addSignatureBox = (fieldType) => {
-    const newPage = currentPage
+    const newPage = currentPage;
+    const containerWidth = containerRef.current.offsetWidth;
+    const containerHeight = containerRef.current.offsetHeight;
+
     setSignatureBoxes((prevBoxes) => ({
       ...prevBoxes,
       [newPage]: [
         ...(prevBoxes[newPage] || []),
-        {
-          fieldType,
-          top: 100,
-          left: 100,
-          page: newPage,
-          required: false,
-          isExpanded: false,
-        },
+        clampBoxPosition(
+          {
+            fieldType,
+            top: 100,
+            left: 100,
+            page: newPage,
+            required: false,
+            ...INITIAL_SIGNATURE_SIZE,
+          },
+          containerWidth,
+          containerHeight
+        ),
       ],
-    }))
-  }
+    }));
+  };
 
   const getIconForFieldType = (fieldType) => {
     switch (fieldType) {
@@ -546,28 +784,20 @@ const List = () => {
   }
 
   const renderBoxes = (boxType) => {
-    const boxes =
-      boxType === 'input' ? inputBoxes[currentPage] || [] : signatureBoxes[currentPage] || []
+    const boxes = boxType === 'input' ? inputBoxes[currentPage] || [] : signatureBoxes[currentPage] || [];
+    
     return boxes.map((box, index) => {
-      const isDraggingThisBox =
-        dragging &&
-        draggedElement?.index === index &&
-        draggedElement?.type === boxType &&
-        draggedElement?.page === currentPage
-      const isFocused =
-        focusedBox &&
-        focusedBox.index === index &&
-        focusedBox.type === boxType &&
-        focusedBox.page === currentPage
-      const showIcon = isDraggingThisBox || !isFocused
+      const isDraggingThisBox = dragging && draggedElement?.index === index && draggedElement?.type === boxType;
+      const isFocused = focusedBox?.index === index && focusedBox?.type === boxType && focusedBox?.page === currentPage;
+      const showIcon = (isDraggingThisBox && !draggedElement?.isResizing) || !isFocused;
+      const initialSize = boxType === 'input' ? INITIAL_INPUT_SIZE : INITIAL_SIGNATURE_SIZE;
 
       const boxStyle = {
         position: 'absolute',
-        left: box.left,
-        top: box.top,
-        maxWidth: boxType === 'input' && !showIcon ? '350px' : '200px',
-        width: showIcon ? '50px' : undefined,
-        height: showIcon ? '50px' : undefined,
+        top: `${box.top}px`,
+        left: `${box.left}px`,
+        width: showIcon ? '50px' : `${box.width || initialSize.width}px`,
+        height: showIcon ? '50px' : `${box.height || initialSize.height}px`,
         cursor: isDraggingThisBox ? 'grabbing' : 'grab',
         zIndex: isDraggingThisBox ? 1000 : isFocused ? 100 : 10,
         border: boxType === 'signature' && !showIcon ? '1px solid black' : '1px dashed gray',
@@ -578,7 +808,10 @@ const List = () => {
         userSelect: 'none',
         transition: isDraggingThisBox ? 'none' : 'all 0.2s ease',
         opacity: isDraggingThisBox ? 0.9 : 1,
-      }
+        minWidth: initialSize.width + 'px',
+        minHeight: initialSize.height + 'px',
+        borderRadius: '8px',
+      };
 
       return (
         <div
@@ -586,31 +819,15 @@ const List = () => {
           className={boxType === 'input' && !showIcon ? 'bg-white p-2 rounded shadow-sm' : ''}
           style={boxStyle}
           onMouseDown={handleMouseDown(index, boxType, currentPage)}
-          onMouseUp={handleMouseUp}
-          onClick={(e) => {
-            if (!isDraggingThisBox) {
-              setFocusedBox((prevFocus) =>
-                prevFocus?.index === index &&
-                prevFocus?.type === boxType &&
-                prevFocus?.page === currentPage
-                  ? null
-                  : { index, type: boxType, page: currentPage },
-              )
-              e.stopPropagation()
-            }
-          }}
-          onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget)) {
-              setFocusedBox(null)
-            }
-          }}
+          onMouseUp={handleMouseUp(index, boxType, currentPage)}
           tabIndex={0}
         >
+          {/* Close button */}
           <span
-            className="fs-3 text-secondary text-end cursor-pointer"
+            className="fs-3 text-secondary text-end cursor-pointer close-button"
             onClick={(e) => {
-              e.stopPropagation()
-              removeBox(index, boxType, currentPage)
+              e.stopPropagation();
+              removeBox(index, boxType, currentPage);
             }}
             style={{
               position: 'absolute',
@@ -619,34 +836,155 @@ const List = () => {
               lineHeight: '0.5',
               marginBottom: '10px',
               cursor: 'pointer',
+              zIndex: 1001,
+              pointerEvents: 'auto',
             }}
-          >
-            ×
-          </span>
+          >×</span>
+
+          {/* Resize handles */}
+          {isFocused && (
+            <>
+              <div
+                className="resize-handle"
+                data-direction="nw"
+                style={{
+                  position: 'absolute',
+                  left: -4,
+                  top: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nwse-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
+                data-direction="ne"
+                style={{
+                  position: 'absolute',
+                  right: -4,
+                  top: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nesw-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
+                data-direction="sw"
+                style={{
+                  position: 'absolute',
+                  left: -4,
+                  bottom: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nesw-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
+                data-direction="se"
+                style={{
+                  position: 'absolute',
+                  right: -4,
+                  bottom: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nwse-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+            </>
+          )}
+
           {showIcon ? (
-            <div style={{ fontSize: '30px' }}>{getIconForFieldType(box.fieldType)}</div>
+            <div className="w-100 h-100 d-flex align-items-center justify-content-center">
+              {getIconForFieldType(box.fieldType)}
+            </div>
           ) : boxType === 'input' ? (
-            <input
-              type="text"
-              className="form-control ps-5 pe-3 py-2 border shadow-sm"
-              placeholder={getPlaceholder(box.fieldType)}
-            />
+            <div 
+              className="position-relative mt-2 text-secondary w-100"
+              style={{ pointerEvents: 'none' }}
+            >
+              {box.fieldType === 'checkbox' ? (
+                <label className="form-check-label" style={{ pointerEvents: 'auto' }}>
+                  <input 
+                    type="checkbox" 
+                    className="form-check-input" 
+                    disabled
+                    style={{ pointerEvents: 'auto' }}
+                    onMouseDown={(e) => e.stopPropagation()} 
+                  />
+                </label>
+              ) : (
+                <input
+                  type="text"
+                  className="form-control ps-5 pe-3 py-2 border shadow-sm rounded"
+                  placeholder={getPlaceholder(box.fieldType)}
+                  disabled
+                  style={{ pointerEvents: 'auto' }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                />
+              )}
+              <div 
+                className="d-flex flex-row gap-3 mt-2 justify-content-center w-100"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={box.required || false}
+                  style={{ pointerEvents: 'auto' }}
+                  onChange={(e) => toggleRequired(index, boxType, currentPage)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <p className="fs-6 text-muted mb-0">Required</p>
+              </div>
+            </div>
           ) : (
-            <canvas
-              width="180"
-              height="80"
-              style={{
-                width: '100%',
-                height: '35%',
-                border: '1px dashed #ccc',
-                borderRadius: '4px',
-              }}
-            />
+            <div 
+              style={{ width: '100%', height: '100px', padding: '5px', pointerEvents: 'none' }}
+            >
+              <canvas
+                width="180"
+                height="80"
+                style={{
+                  width: '100%',
+                  height: '35%',
+                  border: '1px dashed #ccc',
+                  borderRadius: '4px',
+                  pointerEvents: 'auto'
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+              />
+              <div 
+                className="d-flex flex-row gap-3 mt-2 justify-content-center w-100"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={box.required || false}
+                  style={{ pointerEvents: 'auto' }}
+                  onChange={(e) => toggleRequired(index, boxType, currentPage)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <p className="fs-6 text-muted mb-0">Required</p>
+              </div>
+            </div>
           )}
         </div>
-      )
-    })
-  }
+      );
+    });
+  };
 
   const renderThumbnail = useCallback(
     (page, index) => {
@@ -698,6 +1036,265 @@ const List = () => {
     return null
   }, [currentDocument?.path, pdfPages.length, renderThumbnail])
 
+  // const renderFieldsOnDocument = async (document, inputBoxes, signatureBoxes) => {
+  //   if (!document || (!document.file && !document.path)) {
+  //     throw new Error('Invalid document or missing file path')
+  //   }
+
+  //   const filePath = document.file || document.path
+  //   const response = await fetch(`${apiUrl}/public/storage/${filePath}`)
+  //   const blob = await response.blob()
+
+  //   if (filePath.toLowerCase().endsWith('.pdf')) {
+  //     const pdfDoc = await pdfjsLib.getDocument(URL.createObjectURL(blob)).promise
+  //     const canvas = document.createElement('canvas')
+  //     const ctx = canvas.getContext('2d')
+
+  //     // For each page in the PDF
+  //     for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+  //       const page = await pdfDoc.getPage(pageNum)
+  //       const viewport = page.getViewport({ scale: 1 })
+
+  //       canvas.width = viewport.width
+  //       canvas.height = viewport.height
+
+  //       // Render PDF page
+  //       await page.render({
+  //         canvasContext: ctx,
+  //         viewport: viewport,
+  //       }).promise
+
+  //       // Draw input fields for this page
+  //       const pageInputs = inputBoxes[pageNum] || []
+  //       const pageSignatures = signatureBoxes[pageNum] || []
+
+  //       ;[...pageInputs, ...pageSignatures].forEach((box) => {
+  //         ctx.save()
+  //         ctx.strokeStyle = '#000'
+  //         ctx.strokeRect(box.left, box.top, box.fieldType === 'checkbox' ? 20 : 150, 30)
+  //         ctx.restore()
+  //       })
+  //     }
+
+  //     return new Promise((resolve) => {
+  //       canvas.toBlob((blob) => resolve(blob), 'application/pdf')
+  //     })
+  //   } else if (filePath.toLowerCase().endsWith('.docx')) {
+  //     // For DOCX handling remains the same
+  //     const result = await mammoth.convertToHtml(blob)
+  //     let html = result.value
+
+  //     Object.entries(inputBoxes).forEach(([page, boxes]) => {
+  //       boxes.forEach((box) => {
+  //         const marker = `<div style="position:absolute;left:${box.left}px;top:${box.top}px;border:1px solid black;width:150px;height:30px"></div>`
+  //         html += marker
+  //       })
+  //     })
+
+  //     return new Blob([html], {
+  //       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  //     })
+  //   }
+  // }
+
+  // const handleDownload = async (document) => {
+  //   try {
+  //     if (!document?.id) {
+  //       console.error('No document ID provided')
+  //       toast.error('Document not found')
+  //       return
+  //     }
+
+  //     // First fetch the document details including input/signature boxes
+  //     const response = await axios.get(`${apiUrl}/api/documents/pending/${document.id}/`)
+  //     const doc = response.data.document[0]
+
+  //     // Parse the input and signature boxes from the server
+  //     const inputBoxesFromServer = doc.input_boxes ? JSON.parse(doc.input_boxes) : []
+  //     const signatureBoxesFromServer = doc.signature_boxes ? JSON.parse(doc.signature_boxes) : []
+
+  //     // Organize boxes by page
+  //     const inputBoxesByPage = {}
+  //     inputBoxesFromServer.forEach((box) => {
+  //       inputBoxesByPage[box.page] = [
+  //         ...(inputBoxesByPage[box.page] || []),
+  //         { ...box, isExpanded: false },
+  //       ]
+  //     })
+
+  //     const signatureBoxesByPage = {}
+  //     signatureBoxesFromServer.forEach((box) => {
+  //       signatureBoxesByPage[box.page] = [
+  //         ...(signatureBoxesByPage[box.page] || []),
+  //         { ...box, isExpanded: false },
+  //       ]
+  //     })
+
+  //     // Now render the document with the boxes
+  //     const modifiedBlob = await renderFieldsOnDocument(doc, inputBoxesByPage, signatureBoxesByPage)
+
+  //     if (!modifiedBlob) {
+  //       throw new Error('Failed to generate document blob')
+  //     }
+
+  //     const url = URL.createObjectURL(modifiedBlob)
+  //     const a = document.createElement('a')
+  //     a.href = url
+  //     a.download = doc.name || 'document'
+  //     document.body.appendChild(a)
+  //     a.click()
+  //     document.body.removeChild(a)
+  //     URL.revokeObjectURL(url)
+
+  //     toast.success('Document downloaded successfully!')
+  //   } catch (error) {
+  //     console.error('Error downloading document:', error)
+  //     toast.error('Failed to download document: ' + error.message)
+  //   }
+  // }
+  const renderFieldsOnDocument = async ( docment, inputBoxes, signatureBoxes ) =>
+  {
+    if ( typeof window === 'undefined' || typeof docment === 'undefined' )
+    {
+      console.error( 'This function should only be called in a browser environment' );
+      return;
+    }
+
+    if ( !docment || ( !docment.file && !docment.path ) )
+    {
+      throw new Error( 'Invalid document or missing file path' );
+    }
+
+    const filePath = docment.file || docment.path;
+    const response = await fetch( `${apiUrl}/public/storage/${filePath}` );
+    const blob = await response.blob();
+
+    if ( filePath.toLowerCase().endsWith( '.pdf' ) )
+    {
+      const pdfDoc = await pdfjsLib.getDocument( URL.createObjectURL( blob ) ).promise;
+      const canvas = document.createElement( 'canvas' );
+      const ctx = canvas.getContext( '2d' );
+
+      for ( let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++ )
+      {
+        const page = await pdfDoc.getPage( pageNum );
+        const viewport = page.getViewport( { scale: 1 } );
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render( {
+          canvasContext: ctx,
+          viewport: viewport,
+        } ).promise;
+
+        const pageInputs = inputBoxes[ pageNum ] || [];
+        const pageSignatures = signatureBoxes[ pageNum ] || [];
+
+        [ ...pageInputs, ...pageSignatures ].forEach( ( box ) =>
+        {
+          ctx.save();
+          ctx.strokeStyle = '#000';
+          ctx.strokeRect( box.left, box.top, box.fieldType === 'checkbox' ? 20 : 150, 30 );
+          ctx.restore();
+        } );
+      }
+
+      return new Promise( ( resolve, reject ) =>
+      {
+        canvas.toBlob( ( blob ) =>
+        {
+          if ( blob )
+          {
+            resolve( blob );
+          } else
+          {
+            reject( new Error( 'Failed to create PDF blob' ) );
+          }
+        }, 'application/pdf' );
+      } );
+    } else if ( filePath.toLowerCase().endsWith( '.docx' ) )
+    {
+      const arrayBuffer = await blob.arrayBuffer();
+      const result = await mammoth.convertToHtml( { arrayBuffer } );
+      let html = result.value;
+
+      Object.entries( inputBoxes ).forEach( ( [ page, boxes ] ) =>
+      {
+        boxes.forEach( ( box ) =>
+        {
+          const marker = `<div style="position:absolute;left:${box.left}px;top:${box.top}px;border:1px solid black;width:150px;height:30px"></div>`;
+          html += marker;
+        } );
+      } );
+
+      return new Blob( [ html ], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      } );
+    }
+  };
+
+
+  const handleDownload = async ( doc ) =>
+  { // Renamed parameter to avoid shadowing
+    try
+    {
+      if ( !doc?.id )
+      {
+        console.error( 'No document ID provided' );
+        toast.error( 'Document not found' );
+        return;
+      }
+
+      const response = await axios.get( `${apiUrl}/api/documents/pending/${doc.id}/` );
+      const documentData = response.data.document[ 0 ];
+
+      const inputBoxesFromServer = documentData.input_boxes ? JSON.parse( documentData.input_boxes ) : [];
+      const signatureBoxesFromServer = documentData.signature_boxes ? JSON.parse( documentData.signature_boxes ) : [];
+
+      const inputBoxesByPage = {};
+      inputBoxesFromServer.forEach( ( box ) =>
+      {
+        inputBoxesByPage[ box.page ] = [
+          ...( inputBoxesByPage[ box.page ] || [] ),
+          { ...box, isExpanded: false },
+        ];
+      } );
+
+      const signatureBoxesByPage = {};
+      signatureBoxesFromServer.forEach( ( box ) =>
+      {
+        signatureBoxesByPage[ box.page ] = [
+          ...( signatureBoxesByPage[ box.page ] || [] ),
+          { ...box, isExpanded: false },
+        ];
+      } );
+
+      const modifiedBlob = await renderFieldsOnDocument( documentData, inputBoxesByPage, signatureBoxesByPage );
+
+      if ( !modifiedBlob )
+      {
+        throw new Error( 'Failed to generate document blob' );
+      }
+
+      const url = URL.createObjectURL( modifiedBlob );
+      const a = document.createElement( 'a' );
+      a.href = url;
+      a.download = documentData.name || 'document';
+      document.body.appendChild( a );
+      a.click();
+      document.body.removeChild( a );
+      URL.revokeObjectURL( url );
+
+      toast.success( 'Document downloaded successfully!' );
+    } catch ( error )
+    {
+      console.log(doc)
+      console.error( 'Error downloading document:', error );
+      toast.error( 'Failed to download document: ' + error.message );
+    }
+  };
+
   return (
     <CContainer>
       <Toaster />
@@ -721,27 +1318,24 @@ const List = () => {
                   <CTableHeaderCell scope="row">{index + 1}</CTableHeaderCell>
                   <CTableDataCell>{document.name}</CTableDataCell>
                   <CTableDataCell>
+                    <CButton
+                      color="primary"
+                      onClick={() => {
+                        setCurrentDocument(document)
+                        handleDownload(document)
+                      }}
+                      className="me-2"
+                    >
+                      Download with Fields
+                    </CButton>
                     <a
                       className="btn btn-outline-secondary"
-                      // style={{
-                      //   backgroundColor: '#fff !Important',
-                      // }}
-                      href={`${apiUrl}/public/storage/${document.file}`}
+                      href={`${apiUrl}/public/storage/${document.path}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Download
+                      Download Original
                     </a>
-                    {/* <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        handleViewDocument(document.id)
-                      }}
-                      rel="noopener noreferrer"
-                    >
-                      View
-                    </a> */}
                   </CTableDataCell>
                   <CTableDataCell>
                     <CButton
@@ -822,7 +1416,8 @@ const List = () => {
                 <div
                   style={{
                     width: '25%',
-                    height: '600px',
+                    // height: '600px',
+                    height: 'fit-content',
                     overflowY: 'auto',
                     boxShadow: '0px 0px 5px rgb(65 26 70)',
                     display: 'flex',
