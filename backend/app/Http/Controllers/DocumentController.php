@@ -8,6 +8,7 @@ use App\Models\Box;
 use App\Models\Document;
 use App\Models\DocumentSubmit;
 use App\Models\OneTimeLink;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Enumerable;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\Mime\Email;
 use Throwable;
+use Illuminate\Support\Facades\Http;
 
 class DocumentController extends Controller
 {
@@ -300,9 +302,6 @@ public function getDocument($filename)
                 'top' => $box['top'],
                 'left' => $box['left'],
                 'required' => $box['required'] ?? false,
-                'width' => $box['width'] ?? 350,
-                'height' => $box['height'] ?? 50,
-                'is_expanded' => $box['isExpanded'] ?? false
             ]);
         }
 
@@ -313,9 +312,6 @@ public function getDocument($filename)
                 'top' => $box['top'],
                 'left' => $box['left'],
                 'required' => $box['required'] ?? false,
-                'width' => $box['width'] ?? 350,
-                'height' => $box['height'] ?? 50,
-                'is_expanded' => $box['isExpanded'] ?? false
             ]);
         }
 
@@ -384,8 +380,8 @@ public function getDocument($filename)
     {
         // Validate the request data
         $data = $request->validate([
-            'data' => 'required|array', // Ensure data is an array
-            'data.*' => 'required|not_in:null,undefined',
+            'data' => 'nullable|array', // Ensure data is an array
+            'data.*' => 'nullable',
             'status' => 'required|string',
         ]);
         $missing = [];
@@ -403,29 +399,51 @@ public function getDocument($filename)
         }
 
         $user = Auth::user();
-        // Check if the user has already submitted this document with the 'pending' status
-        $existingSubmission = DocumentSubmit::where('document_id', $id)
-            ->where('user_id', $user->id)
-            ->where('status', 'pending')
-            ->first(); // Retrieve the existing submission
 
-        // If the submission exists, update its status
-        if ($existingSubmission) {
-            // Update the existing submission's status
-            $existingSubmission->update([
-                'status' => 'submit', // Update status
-                'data' => $request->input('data', ''), // Optionally update the data if necessary
-            ]);
+        // Transaction
+        DB::beginTransaction();
 
-            return response()->json([
-                'message' => 'Document status updated successfully!',
-            ]);
+        try {
+            // Check if the user has already submitted this document with the 'pending' status
+            $existingSubmission = DocumentSubmit::where('document_id', $id)
+                ->where('user_id', $user->id)
+                ->where('status', 'pending')
+                ->first(); // Retrieve the existing submission
+            $submitted = DocumentSubmit::where('document_id', $id)
+                ->where('user_id', $user->id)
+                ->where('status', 'submit')
+                ->first();
+            // If the submission exists, update its status
+            if ($existingSubmission) {
+                // Update the existing submission's status
+                $existingSubmission->update([
+                    'status' => 'submit', // Update status
+                    'data' => $request->input('data', ''), // Optionally update the data if necessary
+                ]);
+                // Commit the transaction
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Document submitted successfully',
+                ]);
+            } elseif ($submitted) {
+                return response()->json([
+                    'message' => 'Document Already Submitted by the User',
+                ], 409); // 409 Conflict HTTP status code
+
+            } else {
+                return response()->json([
+                    'message' => 'The requested document could not be found.',
+                ], 404); // 404 not found
+            }
+        } catch (Exception $e) {
+            // Rollback the transaction if something goes wrong
+            DB::rollBack();
+            return response()->json(['message' => 'An error occurred, please try again later.', 'error' => $e->getMessage()], 500);
+
         }
 
-        // If no submission exists with 'pending' status, return a conflict message
-        return response()->json([
-            'message' => 'User has not submitted this document or the status is not pending.',
-        ], 409); // 409 Conflict HTTP status code
+
     }
 
     public function submitDocumentUserPublic(Request $request, $id)
@@ -564,9 +582,6 @@ public function getDocument($filename)
                 'top' => $box['top'],
                 'left' => $box['left'],
                 'required' => $box['required'] ?? false,
-                'width' => $box['width'] ?? 350,
-                'height' => $box['height'] ?? 50,
-                'is_expanded' => $box['isExpanded'] ?? false
             ]);
         }
 
@@ -577,9 +592,6 @@ public function getDocument($filename)
                 'top' => $box['top'],
                 'left' => $box['left'],
                 'required' => $box['required'] ?? false,
-                'width' => $box['width'] ?? 350,
-                'height' => $box['height'] ?? 50,
-                'is_expanded' => $box['isExpanded'] ?? false
             ]);
         }
 
@@ -597,6 +609,72 @@ public function getDocument($filename)
             'document' => $documentWithRelations
         ], 200);
     }
+
+
+    public function uploadFile2(Request $request)
+{
+    // Validate input
+    $request->validate([
+        'file' => 'required|file|mimes:doc,docx|max:10240', // Limit size to 10MB
+    ]);
+
+    // Store the file
+    $extension = $request->file('file')->getClientOriginalExtension();
+    $fileName = time() . '.' . $extension;
+    $filePath = $request->file('file')->storeAs('documents', $fileName);
+
+    // Prepare the file for API conversion
+    $fileFullPath = Storage::path($filePath);
+
+    $apiKeys = [
+        "74421d1490msh2a6b45268f8992bp1cdfa9jsnc8e18cb43a9e",
+        "ec25b79af1msh0baf5741368e15ap13426ajsn2ce1a972f816",
+        "b992e01091msh9bfc982765bcee8p1531c5jsna7dedef1675d",
+        "1a3309e6f3msh3eaa439cc053491p1ee5afjsn21c6f45c5bae",
+        "578c272d40msh273545f4971294ap1eaebfjsn199adf08c1ee",
+        "9e93ba4cc4mshb6b8ec200622d09p14de9ajsna7a3fe078c91",
+        "3e05433c61mshd38a9a641f9953cp1aeb91jsn49ebf01376b7"
+    ];
+
+    $converted = false;
+    $apiIndex = 0;
+    $convertedPdf = null;
+
+    while (!$converted && $apiIndex < count($apiKeys)) {
+        $currentApiKey = $apiKeys[$apiIndex];
+        $response = Http::attach('file', file_get_contents($fileFullPath), $fileName)
+            ->withHeaders([
+                'x-rapidapi-key' => $currentApiKey,
+                'x-rapidapi-host' => 'convert-to-pdf1.p.rapidapi.com',
+            ])
+            ->post('https://convert-to-pdf1.p.rapidapi.com/convert');
+
+        if ($response->successful()) {
+            // Get PDF data from response and save the file
+            $pdfContent = $response->body();
+            $pdfFileName = time() . '.pdf';
+            $pdfFilePath = 'documents/' . $pdfFileName;
+            Storage::put($pdfFilePath, $pdfContent);
+            $converted = true;
+            $convertedPdf = $pdfFilePath;
+        } else {
+            // Log or handle error
+            $apiIndex++;
+        }
+    }
+
+    if (!$converted) {
+        return response()->json([
+            'message' => 'All API keys have failed or reached their limits. Please try again later.',
+        ], 500);
+    }
+
+    return response()->json([
+        'message' => 'File uploaded and converted to PDF successfully',
+        'document' => $filePath,
+        'pdf' => $convertedPdf
+    ], 200);
+}
 
     // Save Document with input fields and signature boxes
     public function saveDocument(Request $request)

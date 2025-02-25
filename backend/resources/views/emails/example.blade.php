@@ -6,6 +6,6 @@
 <body>
     <h1>{{ $data['title'] }}</h1>
     <p>{{ $data['body'] }}</p>
-    <a href="http://localhost:3001/#/document/view/{{ $data['link'] }}">Click Here</a>
+    <a href="https://userdocusign.devcir.co/document/view/{{ $data['link'] }}">Click Here</a>
 </body>
 </html>

@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     
     // Create
     Route::post('/upload-file', [DocumentController::class, 'uploadFile']);
+    Route::post('/upload-file2', [DocumentController::class, 'uploadFile2']);
     Route::post('/documents/{documentId}/submit', [DocumentController::class, 'submitDocument']);
     Route::post('/documents/{documentId}/submitToEmail', [DocumentController::class, 'submitToEmail']);
 

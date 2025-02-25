@@ -21,7 +21,7 @@
             border-radius: 8px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
             text-align: center;
-        }   
+        }
 
         h1 {
             color: #333;
@@ -62,25 +62,13 @@
     <p>{{ $data['body'] }}</p>
 
     @php
-    try {        
+        $frontendUrl = env('USER_FRONTEND_URL')  ?? 'https://userdocusign.devcir.co'; // Default to user frontend
         $id = $data['id'];
         $token = $data['token'];
         $email = $data['email'];
-        $url = "";
-        $frontendUrl = env('USER_FRONTEND_URL')  ?? 'http://localhost:3001'; // Default to user frontend
-        if($data['type'] === 'agreement') {
-            $url = "$frontendUrl/public/agreement/viewPublic/$id?token=$token&email=$email";
-        }
-        else if($data['type'] === 'template') {
-            $url = "$frontendUrl/public/document/viewPublic/$id?token=$token&email=$email";
-        }
-    }
-    catch(Exception $error) {
-        Log::error($error->getMessage());
-    }
     @endphp
 
-    <a href="{{$url}}" class="btn">
+    <a href="{{ "$frontendUrl/public/document/viewPublic/$id?token=$token&email=$email" }}" class="btn">
         Submit Your Data
     </a>
 

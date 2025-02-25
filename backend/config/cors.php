@@ -1,6 +1,8 @@
 <?php
 return [
-    'paths' => ['api/*', 'storage/*'], // Ensure storage paths are included
+    // 'paths' => ['api/*', 'storage/*','public/storage/*'], // Ensure storage paths are included
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'storage/documents/*'], // Allow CORS for specific paths
+
     'allowed_methods' => ['*'], // Allow all HTTP methods
     'allowed_origins' => ['http://localhost','http://localhost:3000','https://localhost:3000','http://localhost:3001','https://localhost:3001','http://localhost:3002','https://localhost:3002','https://docusign.devcir.co','http://docusign.devcir.co','https://userdocusign.devcir.co','http://userdocusign.devcir.co'], // Add your frontend URL
     // 'allowed_origins' => ['*'], // Add your frontend URL

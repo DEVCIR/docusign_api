@@ -4,8 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Document extends Model
 {
@@ -17,11 +15,12 @@ class Document extends Model
     // Specify the fillable fields that can be mass-assigned
     protected $fillable = [
         'name',
-        'path',
-        'type',
-        'user_id',
         'input_boxes',
-        'signature_boxes'
+        'signature_boxes',
+        'status',
+        'user_id',
+        'type',
+        'path'
     ];
 
     // Cast JSON fields to arrays
@@ -31,18 +30,17 @@ class Document extends Model
     ];
 
     // Define the relationship to the User model (Assuming the document belongs to a user)
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
-
-    public function boxes(): HasMany
+    public function boxes()
     {
         return $this->hasMany(Box::class);
     }
 
     public function documentSubmissions()
-    {
-        return $this->hasMany(DocumentSubmit::class);
-    }
+{
+    return $this->hasMany(DocumentSubmit::class);
+}
 }

@@ -1,13 +1,13 @@
-<IfModule mod_headers.c>
-    # Allow multiple origins
-    SetEnvIf Origin "http(s)?://(localhost:3000|localhost:3001|example.com)$" AccessControlAllowOrigin=$0
-    Header set Access-Control-Allow-Origin %{AccessControlAllowOrigin}e env=AccessControlAllowOrigin
+# <IfModule mod_headers.c>
+#     # Allow multiple origins
+#     SetEnvIf Origin "http(s)?://(localhost:3000|localhost:3001|docusign.devcir.co|userdocusign.devcir.co|devcir.co|example.com)$" AccessControlAllowOrigin=$0
+#     Header set Access-Control-Allow-Origin %{AccessControlAllowOrigin}e env=AccessControlAllowOrigin
 
-    # Allow methods and headers
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-    Header set Access-Control-Allow-Credentials "true"
-</IfModule>
+#     # Allow methods and headers
+#     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+#     Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+#     Header set Access-Control-Allow-Credentials "true"
+# </IfModule>
 
 <IfModule mod_rewrite.c>
 RewriteEngine On
