@@ -1,0 +1,34 @@
+// If you want to override variables do it here
+@import "variables";
+
+// Import styles
+@import "@coreui/coreui/scss/coreui";
+@import "@coreui/chartjs/scss/coreui-chartjs";
+
+// Vendors
+@import "vendors/simplebar";
+
+// Custom styles for this theme
+@import "theme";
+
+// If you want to add custom CSS you can put it here
+@import "custom";
+
+.sidebar.sidebar-dark.sidebar-fixed.border-end{
+    background-color: #255b2d !important;
+}
+.btn-primary{
+    background-color: #255b2d !important;
+}
+.btn-primary:hover{
+    background-color: #255b2d !important;
+}
+.btn-info{
+    background-color: #255b2d !important;
+    color:white !important;
+}
+.btn-info:hover{
+    background-color: white !important;
+    color:#255b2d !important;
+    border-color: #255b2d !important;
+}

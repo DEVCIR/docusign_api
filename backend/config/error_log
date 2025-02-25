@@ -1,0 +1,4 @@
+[19-Feb-2025 11:32:32 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/devcjhfq/apidocusign.devcir.co/config/database.php:18
+Stack trace:
+#0 {main}
+  thrown in /home/devcjhfq/apidocusign.devcir.co/config/database.php on line 18

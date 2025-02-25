@@ -1,0 +1,66 @@
+.font-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.font-option {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.font-option:hover {
+  background-color: #f8f9fa;
+}
+
+.font-option.selected {
+  border-color: #3c4b64;
+  background-color: #ebedef;
+}
+
+.signature-preview-text {
+  font-size: 1.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.font-name {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 5px;
+}
+
+.document-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.font-option {
+  transition: background-color 0.2s;
+}
+
+.font-option:hover {
+  background-color: #f8f9fa;
+}
+
+.font-option.selected {
+  background-color: #e9ecef;
+}
+
+.signature-preview-text {
+  white-space: nowrap;
+}
