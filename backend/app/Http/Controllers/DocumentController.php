@@ -540,22 +540,22 @@ public function getDocument($filename)
     }
 
     public function uploadFile(Request $request)
-
-    
     {
         // Validate input
-        $request->validate([
+        $data = $request->validate([
             'document_name' => 'required|string|max:255',
             'file' => 'required|file', // Limit size to 10MB
             'input_boxes' => 'required',
             'signature_boxes' => 'required',
             'type' => 'nullable|in:template,agreement'
         ]);
+        return response()->json(['data' => $data]);
+
+
         $user = Auth::user();
 
         // Get the original file extension
         $extension = $request->file('file')->getClientOriginalExtension();
-
         // Generate a unique filename and store the file
         $fileName = time() . '.' . $extension; // You can customize the file name if needed
         $filePath = $request->file('file')->storeAs('documents', $fileName);

@@ -124,7 +124,7 @@ const Create = () => {
 
   const containerRef = useRef(null)
   const mainCanvasRef = useRef(null)
-  const fileInputRef = useRef(null)
+  const fileInputRef = useRef(File)
   const renderedThumbnails = useRef({})
   const currentPageRef = useRef(null)
 
@@ -738,6 +738,7 @@ const Create = () => {
     formData.append('input_boxes', JSON.stringify(allInputBoxes))
     formData.append('signature_boxes', JSON.stringify(allSignatureBoxes))
     formData.append('page_count', documentPageCount)
+    console.log([...formData])
 
     axios
       .post(

@@ -169,10 +169,8 @@ import { useSearchParams } from 'react-router-dom'
 import * as pdfjsLib from 'pdfjs-dist'
 import axios from 'axios'
 import { toast, Toaster } from 'sonner'
-import jsPDF from 'jspdf';
+import jsPDF from 'jspdf'
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
-
-
 
 const Submit = () => {
   const [searchParams] = useSearchParams()
@@ -199,196 +197,186 @@ const Submit = () => {
     }
   }
   const renderPdfWithFields = async (documentData, inputBoxes, signatureBoxes) => {
-    const response = await fetch(`${apiUrl}/public/storage/${documentData.file || documentData.path}`);
-    const blob = await response.blob();
-    const pdfDoc = await pdfjsLib.getDocument(URL.createObjectURL(blob)).promise;
+    const response = await fetch(
+      `${apiUrl}/public/storage/${documentData.file || documentData.path}`,
+    )
+    const blob = await response.blob()
+    const pdfDoc = await pdfjsLib.getDocument(URL.createObjectURL(blob)).promise
 
-    const pdf = new jsPDF();
+    const pdf = new jsPDF()
 
-    const scale = 2; // Increase scale for better resolution
+    const scale = 2 // Increase scale for better resolution
 
     for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-        const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: scale });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+      const page = await pdfDoc.getPage(pageNum)
+      const viewport = page.getViewport({ scale: scale })
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      canvas.width = viewport.width
+      canvas.height = viewport.height
 
-        await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ canvasContext: ctx, viewport }).promise
 
-        // Draw overlay fields
-        const pageInputs = inputBoxes[pageNum] || [];
-        const pageSignatures = signatureBoxes[pageNum] || [];
-        [...pageInputs, ...pageSignatures].forEach((box) => {
-            ctx.save();
-            ctx.strokeStyle = '#000';
-            ctx.strokeRect(
-                box.left * scale, // Adjust position for scale
-                box.top * scale, // Adjust position for scale
-                box.fieldType === 'checkbox' ? 20 * scale : 150 * scale, // Adjust size for scale
-                30 * scale // Adjust size for scale
-            );
+      // Draw overlay fields
+      const pageInputs = inputBoxes[pageNum] || []
+      const pageSignatures = signatureBoxes[pageNum] || []
+      ;[...pageInputs, ...pageSignatures].forEach((box) => {
+        ctx.save()
+        ctx.strokeStyle = '#000'
+        ctx.strokeRect(
+          box.left * scale, // Adjust position for scale
+          box.top * scale, // Adjust position for scale
+          box.fieldType === 'checkbox' ? 20 * scale : 150 * scale, // Adjust size for scale
+          30 * scale, // Adjust size for scale
+        )
 
-            // Add user data to the PDF
-            if (box.value) {
-                ctx.fillText(box.value, box.left * scale + 5, box.top * scale + 20); // Adjust position as needed
-            }
-            ctx.restore();
-        });
+        // Add user data to the PDF
+        if (box.value) {
+          ctx.fillText(box.value, box.left * scale + 5, box.top * scale + 20) // Adjust position as needed
+        }
+        ctx.restore()
+      })
 
-        // Convert canvas to image
-        const imgData = canvas.toDataURL('image/png');
+      // Convert canvas to image
+      const imgData = canvas.toDataURL('image/png')
 
-        // Add a new page with the correct dimensions
-        if (pageNum > 1) pdf.addPage();
-        pdf.setPage(pageNum);
-        pdf.addImage(imgData, 'PNG', 0, 0, viewport.width / scale, viewport.height / scale); // Adjust size for scale
+      // Add a new page with the correct dimensions
+      if (pageNum > 1) pdf.addPage()
+      pdf.setPage(pageNum)
+      pdf.addImage(imgData, 'PNG', 0, 0, viewport.width / scale, viewport.height / scale) // Adjust size for scale
     }
 
-    return pdf.output('blob');
-  };
-  const renderFieldsOnDocument = async ( docment, inputBoxes, signatureBoxes ) =>
-  {
-    if ( typeof window === 'undefined' || typeof docment === 'undefined' )
-    {
-      console.error( 'This function should only be called in a browser environment' );
-      return;
+    return pdf.output('blob')
+  }
+  const renderFieldsOnDocument = async (docment, inputBoxes, signatureBoxes) => {
+    if (typeof window === 'undefined' || typeof docment === 'undefined') {
+      console.error('This function should only be called in a browser environment')
+      return
     }
 
-    if ( !docment || ( !docment.file && !docment.path ) )
-    {
-      throw new Error( 'Invalid document or missing file path' );
+    if (!docment || (!docment.file && !docment.path)) {
+      throw new Error('Invalid document or missing file path')
     }
 
-    const filePath = docment.file || docment.path;
-    const response = await fetch( `${apiUrl}/public/storage/${filePath}` );
-    const blob = await response.blob();
+    const filePath = docment.file || docment.path
+    const response = await fetch(`${apiUrl}/public/storage/${filePath}`)
+    const blob = await response.blob()
 
-    if ( filePath.toLowerCase().endsWith( '.pdf' ) )
-    {
-      const pdfDoc = await pdfjsLib.getDocument( URL.createObjectURL( blob ) ).promise;
-      const canvas = document.createElement( 'canvas' );
-      const ctx = canvas.getContext( '2d' );
+    if (filePath.toLowerCase().endsWith('.pdf')) {
+      const pdfDoc = await pdfjsLib.getDocument(URL.createObjectURL(blob)).promise
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
 
-      for ( let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++ )
-      {
-        const page = await pdfDoc.getPage( pageNum );
-        const viewport = page.getViewport( { scale: 1 } );
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum)
+        const viewport = page.getViewport({ scale: 1 })
 
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        canvas.width = viewport.width
+        canvas.height = viewport.height
 
-        await page.render( {
+        await page.render({
           canvasContext: ctx,
           viewport: viewport,
-        } ).promise;
+        }).promise
 
-        const pageInputs = inputBoxes[ pageNum ] || [];
-        const pageSignatures = signatureBoxes[ pageNum ] || [];
+        const pageInputs = inputBoxes[pageNum] || []
+        const pageSignatures = signatureBoxes[pageNum] || []
 
-        [ ...pageInputs, ...pageSignatures ].forEach( ( box ) =>
-        {
-          ctx.save();
-          ctx.strokeStyle = '#000';
-          ctx.strokeRect( box.left, box.top, box.fieldType === 'checkbox' ? 20 : 150, 30 );
-          ctx.restore();
-        } );
+        ;[...pageInputs, ...pageSignatures].forEach((box) => {
+          ctx.save()
+          ctx.strokeStyle = '#000'
+          ctx.strokeRect(box.left, box.top, box.fieldType === 'checkbox' ? 20 : 150, 30)
+          ctx.restore()
+        })
       }
 
-      return new Promise( ( resolve, reject ) =>
-      {
-        canvas.toBlob( ( blob ) =>
-        {
-          if ( blob )
-          {
-            resolve( blob );
-          } else
-          {
-            reject( new Error( 'Failed to create PDF blob' ) );
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob)
+          } else {
+            reject(new Error('Failed to create PDF blob'))
           }
-        }, 'application/pdf' );
-      } );
-    } else if ( filePath.toLowerCase().endsWith( '.docx' ) )
-    {
-      const arrayBuffer = await blob.arrayBuffer();
-      const result = await mammoth.convertToHtml( { arrayBuffer } );
-      let html = result.value;
+        }, 'application/pdf')
+      })
+    } else if (filePath.toLowerCase().endsWith('.docx')) {
+      const arrayBuffer = await blob.arrayBuffer()
+      const result = await mammoth.convertToHtml({ arrayBuffer })
+      let html = result.value
 
-      Object.entries( inputBoxes ).forEach( ( [ page, boxes ] ) =>
-      {
-        boxes.forEach( ( box ) =>
-        {
-          const marker = `<div style="position:absolute;left:${box.left}px;top:${box.top}px;border:1px solid black;width:150px;height:30px"></div>`;
-          html += marker;
-        } );
-      } );
+      Object.entries(inputBoxes).forEach(([page, boxes]) => {
+        boxes.forEach((box) => {
+          const marker = `<div style="position:absolute;left:${box.left}px;top:${box.top}px;border:1px solid black;width:150px;height:30px"></div>`
+          html += marker
+        })
+      })
 
-      return new Blob( [ html ], {
+      return new Blob([html], {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      } );
+      })
     }
-  };
+  }
 
-
-  const handleDownload = async ( doc ) =>
-  { // Renamed parameter to avoid shadowing
-    try
-    {
-      if ( !doc?.id )
-      {
-        console.error( 'No document ID provided' );
-        toast.error( 'Document not found' );
-        return;
+  const handleDownload = async (doc) => {
+    // Renamed parameter to avoid shadowing
+    try {
+      if (!doc?.id) {
+        console.error('No document ID provided')
+        toast.error('Document not found')
+        return
       }
 
-      const response = await axios.get( `${apiUrl}/api/documents/pending/${doc.id}/` );
-      const documentData = response.data.document[ 0 ];
+      const response = await axios.get(`${apiUrl}/api/documents/pending/${doc.id}/`)
+      const documentData = response.data.document[0]
 
-      const inputBoxesFromServer = documentData.input_boxes ? JSON.parse( documentData.input_boxes ) : [];
-      const signatureBoxesFromServer = documentData.signature_boxes ? JSON.parse( documentData.signature_boxes ) : [];
+      const inputBoxesFromServer = documentData.input_boxes
+        ? JSON.parse(documentData.input_boxes)
+        : []
+      const signatureBoxesFromServer = documentData.signature_boxes
+        ? JSON.parse(documentData.signature_boxes)
+        : []
 
-      const inputBoxesByPage = {};
-      inputBoxesFromServer.forEach( ( box ) =>
-      {
-        inputBoxesByPage[ box.page ] = [
-          ...( inputBoxesByPage[ box.page ] || [] ),
+      const inputBoxesByPage = {}
+      inputBoxesFromServer.forEach((box) => {
+        inputBoxesByPage[box.page] = [
+          ...(inputBoxesByPage[box.page] || []),
           { ...box, isExpanded: false },
-        ];
-      } );
+        ]
+      })
 
-      const signatureBoxesByPage = {};
-      signatureBoxesFromServer.forEach( ( box ) =>
-      {
-        signatureBoxesByPage[ box.page ] = [
-          ...( signatureBoxesByPage[ box.page ] || [] ),
+      const signatureBoxesByPage = {}
+      signatureBoxesFromServer.forEach((box) => {
+        signatureBoxesByPage[box.page] = [
+          ...(signatureBoxesByPage[box.page] || []),
           { ...box, isExpanded: false },
-        ];
-      } );
+        ]
+      })
 
-      const modifiedBlob = await renderFieldsOnDocument( documentData, inputBoxesByPage, signatureBoxesByPage );
+      const modifiedBlob = await renderFieldsOnDocument(
+        documentData,
+        inputBoxesByPage,
+        signatureBoxesByPage,
+      )
 
-      if ( !modifiedBlob )
-      {
-        throw new Error( 'Failed to generate document blob' );
+      if (!modifiedBlob) {
+        throw new Error('Failed to generate document blob')
       }
 
-      const url = URL.createObjectURL( modifiedBlob );
-      const a = document.createElement( 'a' );
-      a.href = url;
-      a.download = documentData.name || 'document';
-      document.body.appendChild( a );
-      a.click();
-      document.body.removeChild( a );
-      URL.revokeObjectURL( url );
+      const url = URL.createObjectURL(modifiedBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = documentData.name || 'document'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
 
-      toast.success( 'Document downloaded successfully!' );
-    } catch ( error )
-    {
-      console.error( 'Error downloading document:', error );
-      toast.error( 'Failed to download document: ' + error.message );
+      toast.success('Document downloaded successfully!')
+    } catch (error) {
+      console.error('Error downloading document:', error)
+      toast.error('Failed to download document: ' + error.message)
     }
-  };
+  }
   const handleViewSubmission = async (submission, user_id) => {
     try {
       // if (submissions.email !== null) console.log(submission.email)
@@ -434,7 +422,6 @@ const Submit = () => {
         submissionDetails: submissionDetails,
       })
 
-
       setViewModalVisible(true)
     } catch (error) {
       console.error('Error fetching submission details:', error)
@@ -448,7 +435,7 @@ const Submit = () => {
   const capitalizeFirstLetter = (string) => {
     return string.charAt(0).toUpperCase() + string.slice(1)
   }
-   console.log( submissions )
+  console.log(submissions)
   return (
     <CContainer>
       <Toaster />
@@ -483,12 +470,11 @@ const Submit = () => {
                     <CButton
                       color="primary"
                       size="sm"
-                      onClick={() => handleDownload( submission.document )}
+                      onClick={() => handleDownload(submission.document)}
                     >
                       Download with Fields
                     </CButton>
                   </CTableDataCell>
-
                   <CTableDataCell>
                     {/* <CButton
                       color="info"
@@ -542,16 +528,16 @@ const Submit = () => {
                       </p>
                     ) : null,
                   )}
-
-                  <p>
-                    <strong>Signature:</strong>
-                    <img
-                      src={currentSubmission.submissionDetails.signature}
-                      // src={currentSubmission.submissionDetails.null}
-                      alt="Signature"
-                      style={{ width: '200px', height: 'auto' }}
-                    />
-                  </p>
+                  {currentSubmission.submissionDetails.signature && (
+                    <p>
+                      <strong>Signature:</strong>
+                      <img
+                        src={currentSubmission.submissionDetails.signature}
+                        alt="Signature"
+                        style={{ width: '200px', height: 'auto' }}
+                      />
+                    </p>
+                  )}
                   <p>
                     <strong>File:</strong>
                     <a

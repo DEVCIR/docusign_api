@@ -350,13 +350,12 @@ const DocumentViewer = () => {
       const moreUpdatedFormData = (({ null: removedValue, ...rest }) => ({
         ...rest,
         signature: removedValue,
-        status: 'submit',
       }))(updatedFormData)
 
       await axios
         .post(url, {
           data: moreUpdatedFormData,
-          status: 'submit',
+          status: 'pending',
           ...(isPublic && { token, email }),
         })
         .then((response) => {

@@ -1,3 +1,5 @@
+/* eslint-disable react/display-name */
+/* eslint-disable react/prop-types */
 import {
   CButton,
   CContainer,
@@ -292,110 +294,6 @@ const Create = () => {
   }
   const [isCanvasReady, setIsCanvasReady] = useState(false)
 
-  // const handleFileChange = async ( event ) =>
-  // {
-  //   const file = event.target.files[ 0 ]
-  //   const fileType = file.name.split( '.' ).pop().toLowerCase()
-
-  //   if ( fileType === 'pdf' )
-  //   {
-  //     setFileType( 'pdf' )
-  //   } else if ( fileType === 'docx' )
-  //   {
-  //     setUploadedFile( true );
-  //     setIsCanvasReady( true );
-  //     setFileType( 'docx' )
-  //   }
-
-  //   if ( !file || ( fileType !== 'pdf' && fileType !== 'docx' ) )
-  //   {
-  //     toast.error( 'Please upload a valid PDF or DOCX file.', {
-  //       duration: 3000,
-  //       position: 'top-right',
-  //     } )
-  //     reset()
-  //     return
-  //   }
-  //   const nameWithoutExtension = file.name.split( '.' ).slice( 0, -1 ).join( '.' )
-  //   setFileName( nameWithoutExtension )
-  //   setDocumentName( nameWithoutExtension )
-  //   setModalVisible( true )
-  //   if ( fileType === 'pdf' )
-  //   {
-  //     setFileType( 'pdf' )
-  //     loadPDF( file )
-  //   } else if ( fileType === 'docx' )
-  //   {
-  //     try
-  //     {
-  //       const getdocurl = await getDocUrl();
-  //       const newDoc = { uri: `${apiUrl}/public/storage/${getdocurl}` };
-  //       // console.log(newDoc)
-  //       setDocs( [ newDoc ] );
-  //       setUploadedFile( true );
-  //     } catch ( error )
-  //     {
-  //       toast.error( 'Failed to load document' );
-  //     }
-  //   }
-  // }
-
-  // // Make the getDocUrl function return a Promise
-  // const getDocUrl = async () =>
-  // {
-  //   const formData = new FormData();
-  //   const fileInput = fileInputRef.current;
-  //   formData.append( 'file', fileInput.files[ 0 ] );
-
-  //   try
-  //   {
-  //     const response = await axios.post(
-  //       type ? `${apiUrl}/api/upload-file2` : `${apiUrl}/api/upload-file2`,
-  //       formData,
-  //       { headers: { 'Content-Type': 'multipart/form-data' } }
-  //     );
-  //     console.log( response.data );
-  //     return response.data.document; // return the document URL
-  //   } catch ( error )
-  //   {
-  //     if ( error.response && error.response.status === 409 )
-  //     {
-  //       toast.error( 'File already exists' );
-  //     } else
-  //     {
-  //       toast.error( 'Something went wrong' );
-  //     }
-  //     throw error; // rethrow the error so it can be caught in handleFileChange
-  //   }
-  // };
-
-  // const loadPDF = ( file ) =>
-  // {
-  //   const reader = new FileReader()
-  //   reader.onload = async ( e ) =>
-  //   {
-  //     try
-  //     {
-  //       const typedArray = new Uint8Array( e.target.result )
-  //       const loadedPDF = await pdfjsLib.getDocument( typedArray ).promise
-  //       setPdfDocument( loadedPDF )
-  //       setDocumentPageCount( loadedPDF.numPages )
-  //       const pagePromises = []
-  //       for ( let pageNum = 1; pageNum <= loadedPDF.numPages; pageNum++ )
-  //       {
-  //         pagePromises.push( loadedPDF.getPage( pageNum ) )
-  //       }
-  //       const pages = await Promise.all( pagePromises )
-  //       setPdfPages( pages )
-  //     } catch ( error )
-  //     {
-  //       console.error( 'Error loading PDF:', error )
-  //       toast.error( 'Failed to load PDF. Please try again.' )
-  //     }
-  //   }
-  //   reader.readAsArrayBuffer( file )
-  // }
-
   const handleFileChange = async (event) => {
     let file = event.target.files[0]
     let file2 = ''
@@ -408,7 +306,6 @@ const Create = () => {
       try {
         const getdocurl = await getDocUrl()
         file2 = `${apiUrl}/public/storage/${getdocurl}`
-        // file2 = `https://apidocusign.devcir.co/public/storage/documents/1739811305.pdf`;
       } catch (error) {
         toast.error('Failed to load document')
       }
@@ -826,20 +723,16 @@ const Create = () => {
     formData.append('file', fileInput.files[0])
     formData.append('document_name', documentName)
 
-    // Collect all input and signature boxes with their expanded states
+    // Collect all input and signature boxes with their collapsed states
     const allInputBoxes = Object.values(inputBoxes)
       .flat()
       .map((box) => ({
         ...box,
-        top: box.top, // Ensure expanded state is sent
-        left: box.left, // Ensure expanded state is sent
       }))
     const allSignatureBoxes = Object.values(signatureBoxes)
       .flat()
       .map((box) => ({
         ...box,
-        top: box.top, // Ensure expanded state is sent
-        left: box.left, // Ensure expanded state is sent
       }))
 
     formData.append('input_boxes', JSON.stringify(allInputBoxes))

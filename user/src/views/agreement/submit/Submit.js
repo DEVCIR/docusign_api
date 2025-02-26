@@ -99,6 +99,7 @@ const Submit = () => {
                   <CTableDataCell>
                     <a
                       href={apiUrl + '/public/storage/' + submission.file}
+                      className='btn btn-outline-dark'
                       target='_blank'
                       rel='noopener noreferrer'
                     >
@@ -177,15 +178,16 @@ const Submit = () => {
                     ) : null,
                   )}
 
-                  <p>
-                    <strong>Signature:</strong>
-                    <img
-                      src={currentSubmission.submissionDetails.signature}
-                      // src={currentSubmission.submissionDetails.null}
-                      alt='Signature'
-                      style={{ width: 'auto', height: 'auto', display: 'inline' }}
-                    />
-                  </p>
+                  {currentSubmission.submissionDetails.signature && (
+                    <p>
+                      <strong>Signature:</strong>
+                      <img
+                        src={currentSubmission.submissionDetails.signature}
+                        alt='Signature'
+                        style={{ width: '200px', height: 'auto' }}
+                      />
+                    </p>
+                  )}
                   <p>
                     <strong>File:</strong>
                     <a

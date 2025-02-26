@@ -176,6 +176,7 @@ const List = () => {
                   <CTableDataCell>{document.status}</CTableDataCell>
                   <CTableDataCell>
                     <a
+                      className='btn btn-info text-white'
                       href={apiUrl + '/storage/' + document.document.file}
                       target='_blank'
                       rel='noopener noreferrer'
@@ -186,6 +187,7 @@ const List = () => {
                   <CTableDataCell>
                     <a
                       href='#'
+                      className='btn btn-success  text-white'
                       onClick={(e) => {
                         e.preventDefault() // Prevent the default anchor link behavior
                         handleViewDocument(document.document.id)

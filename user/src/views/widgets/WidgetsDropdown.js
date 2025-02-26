@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import PropTypes from 'prop-types'
-import { apiUrl } from "../../components/Config/Config"; // Make sure this points to your correct config
-import axios from 'axios';
+import { apiUrl } from '../../components/Config/Config' // Make sure this points to your correct config
+import axios from 'axios'
 import {
   CRow,
   CCol,
@@ -17,10 +17,10 @@ import CIcon from '@coreui/icons-react'
 import { cilArrowBottom, cilArrowTop, cilOptions } from '@coreui/icons'
 
 const WidgetsDropdown = (props) => {
-   const [totaluser, setTotaluser] = useState(0);
-   const [totalConference, setTotalConference] = useState(0);
-   const [totalOrder, setTotalOrder] = useState(0);
-   const [totalRev, setTotalRev] = useState(0);
+  const [totaluser, setTotaluser] = useState(0)
+  const [totalConference, setTotalConference] = useState(0)
+  const [totalOrder, setTotalOrder] = useState(0)
+  const [totalRev, setTotalRev] = useState(0)
   const widgetChartRef1 = useRef(null)
   const widgetChartRef2 = useRef(null)
 
@@ -42,59 +42,59 @@ const WidgetsDropdown = (props) => {
     })
   }, [widgetChartRef1, widgetChartRef2])
 
+  useEffect(() => {
+    // fetchuser()
+    // fetchConferences()
+    // fetchOrder()
+    setTotaluser(1)
+    setTotalConference(1)
+    setTotalOrder(1)
+  }, [])
 
-
-
-    useEffect(() => {
-      fetchuser();
-      fetchConferences();
-      fetchOrder();
-    }, []);
-  
-    const fetchuser = async () => {
-      try {
-        const response = await fetch(`${apiUrl}/api/total_user/`); // Replace with your actual API URL
-        const data = await response.json();
-        setTotaluser(data.total_users);
-      } catch (error) {
-        console.error('Error fetching conferences:', error);
-      }
-    };
-    const fetchConferences = async () => {
-      try {
-        const response = await fetch(`${apiUrl}/api/total_conference/`); // Replace with your actual API URL
-        const data = await response.json();
-        setTotalConference(data.total_conference);
-      } catch (error) {
-        console.error('Error fetching conferences:', error);
-      }
-    };
-    const fetchOrder = async () => {
-      try {
-        const response = await fetch(`${apiUrl}/api/total_conference/`); // Replace with your actual API URL
-        const data = await response.json();
-        setTotalOrder(data.total_conference);
-      } catch (error) {
-        console.error('Error fetching conferences:', error);
-      }
-    };
+  // const fetchuser = async () => {
+  //   try {
+  //     const response = await fetch(`${apiUrl}/api/total_user/`) // Replace with your actual API URL
+  //     const data = await response.json()
+  //     setTotaluser(data.total_users)
+  //   } catch (error) {
+  //     console.error('Error fetching conferences:', error)
+  //   }
+  // }
+  // const fetchConferences = async () => {
+  //   try {
+  //     const response = await fetch(`${apiUrl}/api/total_conference/`) // Replace with your actual API URL
+  //     const data = await response.json()
+  //     setTotalConference(data.total_conference)
+  //   } catch (error) {
+  //     console.error('Error fetching conferences:', error)
+  //   }
+  // }
+  // const fetchOrder = async () => {
+  //   try {
+  //     const response = await fetch(`${apiUrl}/api/total_conference/`) // Replace with your actual API URL
+  //     const data = await response.json()
+  //     setTotalOrder(data.total_conference)
+  //   } catch (error) {
+  //     console.error('Error fetching conferences:', error)
+  //   }
+  // }
   return (
     <CRow className={props.className} xs={{ gutter: 4 }}>
       <CCol sm={6} xl={4} xxl={3}>
         <CWidgetStatsA
-          color="primary"
+          color='primary'
           value={
             <>
               {totaluser}{' '}
-              <span className="fs-6 fw-normal">
+              <span className='fs-6 fw-normal'>
                 (-12.4% <CIcon icon={cilArrowBottom} />)
               </span>
             </>
           }
-          title="Total Document"
+          title='Total Document'
           action={
-            <CDropdown alignment="end">
-              <CDropdownToggle color="transparent" caret={false} className="text-white p-0">
+            <CDropdown alignment='end'>
+              <CDropdownToggle color='transparent' caret={false} className='text-white p-0'>
                 <CIcon icon={cilOptions} />
               </CDropdownToggle>
               <CDropdownMenu>
@@ -108,7 +108,7 @@ const WidgetsDropdown = (props) => {
           chart={
             <CChartLine
               ref={widgetChartRef1}
-              className="mt-3 mx-3"
+              className='mt-3 mx-3'
               style={{ height: '70px' }}
               data={{
                 labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
@@ -172,19 +172,19 @@ const WidgetsDropdown = (props) => {
       </CCol>
       <CCol sm={6} xl={4} xxl={3}>
         <CWidgetStatsA
-          color="info"
+          color='info'
           value={
             <>
               {totalConference}{' '}
-              <span className="fs-6 fw-normal">
+              <span className='fs-6 fw-normal'>
                 (40.9% <CIcon icon={cilArrowTop} />)
               </span>
             </>
           }
-          title="Total Document"
+          title='Total Document'
           action={
-            <CDropdown alignment="end">
-              <CDropdownToggle color="transparent" caret={false} className="text-white p-0">
+            <CDropdown alignment='end'>
+              <CDropdownToggle color='transparent' caret={false} className='text-white p-0'>
                 <CIcon icon={cilOptions} />
               </CDropdownToggle>
               <CDropdownMenu>
@@ -198,7 +198,7 @@ const WidgetsDropdown = (props) => {
           chart={
             <CChartLine
               ref={widgetChartRef2}
-              className="mt-3 mx-3"
+              className='mt-3 mx-3'
               style={{ height: '70px' }}
               data={{
                 labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
@@ -261,19 +261,19 @@ const WidgetsDropdown = (props) => {
       </CCol>
       <CCol sm={6} xl={4} xxl={3}>
         <CWidgetStatsA
-          color="warning"
+          color='warning'
           value={
             <>
               {totalOrder}{' '}
-              <span className="fs-6 fw-normal">
+              <span className='fs-6 fw-normal'>
                 (84.7% <CIcon icon={cilArrowTop} />)
               </span>
             </>
           }
-          title="Total Order"
+          title='Total Order'
           action={
-            <CDropdown alignment="end">
-              <CDropdownToggle color="transparent" caret={false} className="text-white p-0">
+            <CDropdown alignment='end'>
+              <CDropdownToggle color='transparent' caret={false} className='text-white p-0'>
                 <CIcon icon={cilOptions} />
               </CDropdownToggle>
               <CDropdownMenu>
@@ -286,7 +286,7 @@ const WidgetsDropdown = (props) => {
           }
           chart={
             <CChartLine
-              className="mt-3"
+              className='mt-3'
               style={{ height: '70px' }}
               data={{
                 labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
@@ -333,19 +333,19 @@ const WidgetsDropdown = (props) => {
       </CCol>
       <CCol sm={6} xl={4} xxl={3}>
         <CWidgetStatsA
-          color="danger"
+          color='danger'
           value={
             <>
               {totalRev}{' '}
-              <span className="fs-6 fw-normal">
+              <span className='fs-6 fw-normal'>
                 (-23.6% <CIcon icon={cilArrowBottom} />)
               </span>
             </>
           }
-          title="Total Rev"
+          title='Total Rev'
           action={
-            <CDropdown alignment="end">
-              <CDropdownToggle color="transparent" caret={false} className="text-white p-0">
+            <CDropdown alignment='end'>
+              <CDropdownToggle color='transparent' caret={false} className='text-white p-0'>
                 <CIcon icon={cilOptions} />
               </CDropdownToggle>
               <CDropdownMenu>
@@ -358,7 +358,7 @@ const WidgetsDropdown = (props) => {
           }
           chart={
             <CChartBar
-              className="mt-3 mx-3"
+              className='mt-3 mx-3'
               style={{ height: '70px' }}
               data={{
                 labels: [

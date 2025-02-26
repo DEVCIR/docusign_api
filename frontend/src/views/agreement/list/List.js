@@ -37,8 +37,8 @@ import mammoth from 'mammoth'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
-const INITIAL_INPUT_SIZE = { width: 150, height: 30 };
-const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 };
+const INITIAL_INPUT_SIZE = { width: 150, height: 30 }
+const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 }
 
 const renderPDFPage = async (page, canvas, width, height) => {
   try {
@@ -644,9 +644,9 @@ const List = () => {
   }
 
   const addInputBox = (fieldType) => {
-    const newPage = currentPage;
-    const containerWidth = containerRef.current.offsetWidth;
-    const containerHeight = containerRef.current.offsetHeight;
+    const newPage = currentPage
+    const containerWidth = containerRef.current.offsetWidth
+    const containerHeight = containerRef.current.offsetHeight
 
     setInputBoxes((prevBoxes) => ({
       ...prevBoxes,
@@ -662,16 +662,16 @@ const List = () => {
             ...INITIAL_INPUT_SIZE,
           },
           containerWidth,
-          containerHeight
+          containerHeight,
         ),
       ],
-    }));
-  };
+    }))
+  }
 
   const addSignatureBox = (fieldType) => {
-    const newPage = currentPage;
-    const containerWidth = containerRef.current.offsetWidth;
-    const containerHeight = containerRef.current.offsetHeight;
+    const newPage = currentPage
+    const containerWidth = containerRef.current.offsetWidth
+    const containerHeight = containerRef.current.offsetHeight
 
     setSignatureBoxes((prevBoxes) => ({
       ...prevBoxes,
@@ -687,11 +687,11 @@ const List = () => {
             ...INITIAL_SIGNATURE_SIZE,
           },
           containerWidth,
-          containerHeight
+          containerHeight,
         ),
       ],
-    }));
-  };
+    }))
+  }
 
   const getIconForFieldType = (fieldType) => {
     switch (fieldType) {
@@ -784,13 +784,18 @@ const List = () => {
   }
 
   const renderBoxes = (boxType) => {
-    const boxes = boxType === 'input' ? inputBoxes[currentPage] || [] : signatureBoxes[currentPage] || [];
-    
+    const boxes =
+      boxType === 'input' ? inputBoxes[currentPage] || [] : signatureBoxes[currentPage] || []
+
     return boxes.map((box, index) => {
-      const isDraggingThisBox = dragging && draggedElement?.index === index && draggedElement?.type === boxType;
-      const isFocused = focusedBox?.index === index && focusedBox?.type === boxType && focusedBox?.page === currentPage;
-      const showIcon = (isDraggingThisBox && !draggedElement?.isResizing) || !isFocused;
-      const initialSize = boxType === 'input' ? INITIAL_INPUT_SIZE : INITIAL_SIGNATURE_SIZE;
+      const isDraggingThisBox =
+        dragging && draggedElement?.index === index && draggedElement?.type === boxType
+      const isFocused =
+        focusedBox?.index === index &&
+        focusedBox?.type === boxType &&
+        focusedBox?.page === currentPage
+      const showIcon = (isDraggingThisBox && !draggedElement?.isResizing) || !isFocused
+      const initialSize = boxType === 'input' ? INITIAL_INPUT_SIZE : INITIAL_SIGNATURE_SIZE
 
       const boxStyle = {
         position: 'absolute',
@@ -811,7 +816,7 @@ const List = () => {
         minWidth: initialSize.width + 'px',
         minHeight: initialSize.height + 'px',
         borderRadius: '8px',
-      };
+      }
 
       return (
         <div
@@ -826,8 +831,8 @@ const List = () => {
           <span
             className="fs-3 text-secondary text-end cursor-pointer close-button"
             onClick={(e) => {
-              e.stopPropagation();
-              removeBox(index, boxType, currentPage);
+              e.stopPropagation()
+              removeBox(index, boxType, currentPage)
             }}
             style={{
               position: 'absolute',
@@ -839,7 +844,9 @@ const List = () => {
               zIndex: 1001,
               pointerEvents: 'auto',
             }}
-          >×</span>
+          >
+            ×
+          </span>
 
           {/* Resize handles */}
           {isFocused && (
@@ -908,18 +915,18 @@ const List = () => {
               {getIconForFieldType(box.fieldType)}
             </div>
           ) : boxType === 'input' ? (
-            <div 
+            <div
               className="position-relative mt-2 text-secondary w-100"
               style={{ pointerEvents: 'none' }}
             >
               {box.fieldType === 'checkbox' ? (
                 <label className="form-check-label" style={{ pointerEvents: 'auto' }}>
-                  <input 
-                    type="checkbox" 
-                    className="form-check-input" 
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
                     disabled
                     style={{ pointerEvents: 'auto' }}
-                    onMouseDown={(e) => e.stopPropagation()} 
+                    onMouseDown={(e) => e.stopPropagation()}
                   />
                 </label>
               ) : (
@@ -932,7 +939,7 @@ const List = () => {
                   onMouseDown={(e) => e.stopPropagation()}
                 />
               )}
-              <div 
+              <div
                 className="d-flex flex-row gap-3 mt-2 justify-content-center w-100"
                 style={{ pointerEvents: 'auto' }}
               >
@@ -949,9 +956,7 @@ const List = () => {
               </div>
             </div>
           ) : (
-            <div 
-              style={{ width: '100%', height: '100px', padding: '5px', pointerEvents: 'none' }}
-            >
+            <div style={{ width: '100%', height: '100px', padding: '5px', pointerEvents: 'none' }}>
               <canvas
                 width="180"
                 height="80"
@@ -960,11 +965,11 @@ const List = () => {
                   height: '35%',
                   border: '1px dashed #ccc',
                   borderRadius: '4px',
-                  pointerEvents: 'auto'
+                  pointerEvents: 'auto',
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
               />
-              <div 
+              <div
                 className="d-flex flex-row gap-3 mt-2 justify-content-center w-100"
                 style={{ pointerEvents: 'auto' }}
               >
@@ -982,9 +987,9 @@ const List = () => {
             </div>
           )}
         </div>
-      );
-    });
-  };
+      )
+    })
+  }
 
   const renderThumbnail = useCallback(
     (page, index) => {
@@ -1152,148 +1157,136 @@ const List = () => {
   //     toast.error('Failed to download document: ' + error.message)
   //   }
   // }
-  const renderFieldsOnDocument = async ( docment, inputBoxes, signatureBoxes ) =>
-  {
-    if ( typeof window === 'undefined' || typeof docment === 'undefined' )
-    {
-      console.error( 'This function should only be called in a browser environment' );
-      return;
+  const renderFieldsOnDocument = async (docment, inputBoxes, signatureBoxes) => {
+    if (typeof window === 'undefined' || typeof docment === 'undefined') {
+      console.error('This function should only be called in a browser environment')
+      return
     }
 
-    if ( !docment || ( !docment.file && !docment.path ) )
-    {
-      throw new Error( 'Invalid document or missing file path' );
+    if (!docment || (!docment.file && !docment.path)) {
+      throw new Error('Invalid document or missing file path')
     }
 
-    const filePath = docment.file || docment.path;
-    const response = await fetch( `${apiUrl}/public/storage/${filePath}` );
-    const blob = await response.blob();
+    const filePath = docment.file || docment.path
+    const response = await fetch(`${apiUrl}/public/storage/${filePath}`)
+    const blob = await response.blob()
 
-    if ( filePath.toLowerCase().endsWith( '.pdf' ) )
-    {
-      const pdfDoc = await pdfjsLib.getDocument( URL.createObjectURL( blob ) ).promise;
-      const canvas = document.createElement( 'canvas' );
-      const ctx = canvas.getContext( '2d' );
+    if (filePath.toLowerCase().endsWith('.pdf')) {
+      const pdfDoc = await pdfjsLib.getDocument(URL.createObjectURL(blob)).promise
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
 
-      for ( let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++ )
-      {
-        const page = await pdfDoc.getPage( pageNum );
-        const viewport = page.getViewport( { scale: 1 } );
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum)
+        const viewport = page.getViewport({ scale: 1 })
 
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        canvas.width = viewport.width
+        canvas.height = viewport.height
 
-        await page.render( {
+        await page.render({
           canvasContext: ctx,
           viewport: viewport,
-        } ).promise;
+        }).promise
 
-        const pageInputs = inputBoxes[ pageNum ] || [];
-        const pageSignatures = signatureBoxes[ pageNum ] || [];
+        const pageInputs = inputBoxes[pageNum] || []
+        const pageSignatures = signatureBoxes[pageNum] || []
 
-        [ ...pageInputs, ...pageSignatures ].forEach( ( box ) =>
-        {
-          ctx.save();
-          ctx.strokeStyle = '#000';
-          ctx.strokeRect( box.left, box.top, box.fieldType === 'checkbox' ? 20 : 150, 30 );
-          ctx.restore();
-        } );
+        ;[...pageInputs, ...pageSignatures].forEach((box) => {
+          ctx.save()
+          ctx.strokeStyle = '#000'
+          ctx.strokeRect(box.left, box.top, box.fieldType === 'checkbox' ? 20 : 150, 30)
+          ctx.restore()
+        })
       }
 
-      return new Promise( ( resolve, reject ) =>
-      {
-        canvas.toBlob( ( blob ) =>
-        {
-          if ( blob )
-          {
-            resolve( blob );
-          } else
-          {
-            reject( new Error( 'Failed to create PDF blob' ) );
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob)
+          } else {
+            reject(new Error('Failed to create PDF blob'))
           }
-        }, 'application/pdf' );
-      } );
-    } else if ( filePath.toLowerCase().endsWith( '.docx' ) )
-    {
-      const arrayBuffer = await blob.arrayBuffer();
-      const result = await mammoth.convertToHtml( { arrayBuffer } );
-      let html = result.value;
+        }, 'application/pdf')
+      })
+    } else if (filePath.toLowerCase().endsWith('.docx')) {
+      const arrayBuffer = await blob.arrayBuffer()
+      const result = await mammoth.convertToHtml({ arrayBuffer })
+      let html = result.value
 
-      Object.entries( inputBoxes ).forEach( ( [ page, boxes ] ) =>
-      {
-        boxes.forEach( ( box ) =>
-        {
-          const marker = `<div style="position:absolute;left:${box.left}px;top:${box.top}px;border:1px solid black;width:150px;height:30px"></div>`;
-          html += marker;
-        } );
-      } );
+      Object.entries(inputBoxes).forEach(([page, boxes]) => {
+        boxes.forEach((box) => {
+          const marker = `<div style="position:absolute;left:${box.left}px;top:${box.top}px;border:1px solid black;width:150px;height:30px"></div>`
+          html += marker
+        })
+      })
 
-      return new Blob( [ html ], {
+      return new Blob([html], {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      } );
+      })
     }
-  };
+  }
 
-
-  const handleDownload = async ( doc ) =>
-  { // Renamed parameter to avoid shadowing
-    try
-    {
-      if ( !doc?.id )
-      {
-        console.error( 'No document ID provided' );
-        toast.error( 'Document not found' );
-        return;
+  const handleDownload = async (doc) => {
+    // Renamed parameter to avoid shadowing
+    try {
+      if (!doc?.id) {
+        console.error('No document ID provided')
+        toast.error('Document not found')
+        return
       }
 
-      const response = await axios.get( `${apiUrl}/api/documents/pending/${doc.id}/` );
-      const documentData = response.data.document[ 0 ];
+      const response = await axios.get(`${apiUrl}/api/documents/pending/${doc.id}/`)
+      const documentData = response.data.document[0]
 
-      const inputBoxesFromServer = documentData.input_boxes ? JSON.parse( documentData.input_boxes ) : [];
-      const signatureBoxesFromServer = documentData.signature_boxes ? JSON.parse( documentData.signature_boxes ) : [];
+      const inputBoxesFromServer = documentData.input_boxes
+        ? JSON.parse(documentData.input_boxes)
+        : []
+      const signatureBoxesFromServer = documentData.signature_boxes
+        ? JSON.parse(documentData.signature_boxes)
+        : []
 
-      const inputBoxesByPage = {};
-      inputBoxesFromServer.forEach( ( box ) =>
-      {
-        inputBoxesByPage[ box.page ] = [
-          ...( inputBoxesByPage[ box.page ] || [] ),
+      const inputBoxesByPage = {}
+      inputBoxesFromServer.forEach((box) => {
+        inputBoxesByPage[box.page] = [
+          ...(inputBoxesByPage[box.page] || []),
           { ...box, isExpanded: false },
-        ];
-      } );
+        ]
+      })
 
-      const signatureBoxesByPage = {};
-      signatureBoxesFromServer.forEach( ( box ) =>
-      {
-        signatureBoxesByPage[ box.page ] = [
-          ...( signatureBoxesByPage[ box.page ] || [] ),
+      const signatureBoxesByPage = {}
+      signatureBoxesFromServer.forEach((box) => {
+        signatureBoxesByPage[box.page] = [
+          ...(signatureBoxesByPage[box.page] || []),
           { ...box, isExpanded: false },
-        ];
-      } );
+        ]
+      })
 
-      const modifiedBlob = await renderFieldsOnDocument( documentData, inputBoxesByPage, signatureBoxesByPage );
+      const modifiedBlob = await renderFieldsOnDocument(
+        documentData,
+        inputBoxesByPage,
+        signatureBoxesByPage,
+      )
 
-      if ( !modifiedBlob )
-      {
-        throw new Error( 'Failed to generate document blob' );
+      if (!modifiedBlob) {
+        throw new Error('Failed to generate document blob')
       }
 
-      const url = URL.createObjectURL( modifiedBlob );
-      const a = document.createElement( 'a' );
-      a.href = url;
-      a.download = documentData.name || 'document';
-      document.body.appendChild( a );
-      a.click();
-      document.body.removeChild( a );
-      URL.revokeObjectURL( url );
+      const url = URL.createObjectURL(modifiedBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = documentData.name || 'document'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
 
-      toast.success( 'Document downloaded successfully!' );
-    } catch ( error )
-    {
+      toast.success('Document downloaded successfully!')
+    } catch (error) {
       console.log(doc)
-      console.error( 'Error downloading document:', error );
-      toast.error( 'Failed to download document: ' + error.message );
+      console.error('Error downloading document:', error)
+      toast.error('Failed to download document: ' + error.message)
     }
-  };
+  }
 
   return (
     <CContainer>
