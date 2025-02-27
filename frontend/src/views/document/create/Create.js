@@ -1206,8 +1206,10 @@ const Create = () => {
         </CModalFooter>
       </CModal>
       {uploadedFile && (
-        <div style={{ display: 'flex', marginTop: '20px', flexDirection: 'column' }}>
-          <div
+        <div className='d-flex flex-column mt-4'
+          // style={{ display: 'flex', marginTop: '20px', flexDirection: 'column' }}
+        >
+          {/* <div
             style={{
               position: 'relative',
               width: '100%',
@@ -1218,25 +1220,28 @@ const Create = () => {
             }}
           >
             {thumbnails}
-          </div>
+          </div> */}
           <div
-            style={{
-              display: 'flex',
-              position: 'relative',
-              width: '100%',
-              height: 'auto',
-            }}
+          className='d-flex position-relative w-100'
+            // style={{
+            //   display: 'flex',
+            //   position: 'relative',
+            //   width: '100%',
+            //   height: 'auto',
+            // }}
           >
             <div
               ref={containerRef}
+              className="position-relative bg-light me-2"
               style={{
-                position: 'relative',
+                // position: 'relative',
+                // minHeight: '800px',
+                // backgroundColor: '#f9f9f9',
+                // marginRight: '20px',
                 width: '70%',
-                minHeight: '800px',
-                backgroundColor: '#f9f9f9',
-                marginRight: '20px',
+                height: 'max-content',
                 boxShadow: '0px 0px 5px rgb(65 26 70)',
-                overflow: 'scroll',
+                // overflow: 'hidden !important',
               }}
               onMouseMove={handleMouseMove}
               onClick={(e) => {
