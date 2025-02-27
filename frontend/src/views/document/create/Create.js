@@ -37,23 +37,36 @@ import { MdOutlineWidgets } from 'react-icons/md'
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
 // Memoized Document Component
-const Document = memo(({ containerRef, fileType, docs, mainCanvasRef }) => {
+const Document = memo(({ containerRef, fileType, docs, mainCanvasRef, pdfPages, renderPDFPage }) => {
   // Memoize DocViewer to prevent unnecessary rerenders
   const MemoizedDocViewer = memo(DocViewer)
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {fileType === 'pdf' && (
-        <canvas
-          ref={mainCanvasRef}
-          style={{
-            display: 'block',
-            width: '100%',
-            height: 'auto',
-            zIndex: 1,
-          }}
-        />
-      )}
+      {fileType === 'pdf' && pdfPages.map((page, index) => (
+        <div key={index}>
+          <div style={{ textAlign: 'center', margin: '10px 0' }}>
+            Page {index + 1}
+          </div>
+          <canvas
+            ref={(node) => {
+              if (node) {
+                const viewport = page.getViewport({ scale: 1 });
+                node.width = viewport.width;
+                node.height = viewport.height;
+                renderPDFPage(page, node, viewport.width, viewport.height);
+              }
+            }}
+            style={{
+              display: 'block',
+              width: '100%',
+              height: 'auto',
+              zIndex: 1,
+            }}
+          />
+          {/* <hr style={{ height: "20px", backgroundColor: 'black' }} /> */}
+        </div>
+      ))}
       {fileType === 'docx' && (
         <>
           <MemoizedDocViewer
@@ -1237,6 +1250,8 @@ const Create = () => {
                 fileType={fileType}
                 docs={docs}
                 mainCanvasRef={mainCanvasRef}
+                pdfPages={pdfPages}
+                renderPDFPage={renderPDFPage}
               />
               {renderBoxes('input')}
               {renderBoxes('signature')}
