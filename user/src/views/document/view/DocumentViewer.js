@@ -957,4 +957,4 @@ const DocumentViewer = () => {
   )
 }
 
-export default React.memo(DocumentViewer)
+export default memo(DocumentViewer)

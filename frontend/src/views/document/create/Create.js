@@ -32,6 +32,7 @@ import {
 } from 'react-icons/fa'
 import { renderAsync } from 'docx-preview'
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer'
+import { MdOutlineWidgets } from 'react-icons/md'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
@@ -85,8 +86,8 @@ const Document = memo(({ containerRef, fileType, docs, mainCanvasRef }) => {
   )
 })
 
-const INITIAL_INPUT_SIZE = { width: 150, height: 30 }
-const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 }
+const INITIAL_INPUT_SIZE = { width: 250, height: 100 }
+const INITIAL_SIGNATURE_SIZE = { width: 250, height: 100 }
 
 const clampBoxPosition = (box, containerWidth, containerHeight) => ({
   ...box,
@@ -96,6 +97,10 @@ const clampBoxPosition = (box, containerWidth, containerHeight) => ({
   height: Math.min(box.height || INITIAL_INPUT_SIZE.height, containerHeight - box.top),
 })
 
+/**
+ * This is the main component for creating a document. It handles the state of the document creation process.
+ * @returns {JSX.Element} The Create component
+ */
 const Create = () => {
   const [searchParams] = useSearchParams()
   const type = searchParams.get('type')
@@ -130,6 +135,13 @@ const Create = () => {
 
   const [docs, setDocs] = useState([])
 
+  /**
+   * This function is used to render a PDF page.
+   * @param {Page} page The PDF page to render
+   * @param {HTMLCanvasElement} canvas The canvas to render the page on
+   * @param {number} width The width of the canvas
+   * @param {number} height The height of the canvas
+   */
   const renderPDFPage = useCallback(async (page, canvas, width, height) => {
     if (!canvas) return
     const context = canvas.getContext('2d')
@@ -170,6 +182,13 @@ const Create = () => {
     setCurrentPage(pageNumber)
   }, [pageToRender, renderPDFPage, currentPage])
 
+  /**
+   * Render a single page of the PDF as a thumbnail.
+   *
+   * @param {PDFPage} page - The page to render.
+   * @param {number} index - The index of the page.
+   * @returns {React.ReactElement} A React element representing the thumbnail.
+   */
   const renderThumbnail = useCallback(
     (page, index) => {
       const containerWidth = 100
@@ -224,6 +243,11 @@ const Create = () => {
     [renderPDFPage, currentPage],
   )
 
+  /**
+   * Render all pages of the PDF as thumbnails.
+   *
+   * @returns {React.ReactElement[]} An array of React elements representing the thumbnails.
+   */
   const thumbnails = useMemo(() => {
     if (fileType === 'pdf' && pdfPages.length) {
       return pdfPages.map((page, index) => renderThumbnail(page, index))
@@ -248,6 +272,14 @@ const Create = () => {
     return null
   }, [fileType, pdfPages.length, renderThumbnail, thumbnailForceUpdate])
 
+  /**
+   * Toggles the required state of a form element.
+   *
+   * @param {number} index The index of the element to toggle.
+   * @param {string} type The type of element to toggle: 'input' or 'signature'.
+   * @param {number} page The page number of the element to toggle.
+   * @returns {void}
+   */
   const toggleRequired = (index, type, page) => {
     if (type === 'input') {
       setInputBoxes((prevBoxes) => ({
@@ -294,6 +326,7 @@ const Create = () => {
   }
   const [isCanvasReady, setIsCanvasReady] = useState(false)
 
+  // This function is called when a file is selected for upload.
   const handleFileChange = async (event) => {
     let file = event.target.files[0]
     let file2 = ''
@@ -386,6 +419,7 @@ const Create = () => {
     }
   }
 
+  // This function is used to load a PDF file.
   const loadPDF = (file) => {
     const reader = new FileReader()
     reader.onload = async (e) => {
@@ -408,6 +442,7 @@ const Create = () => {
     reader.readAsArrayBuffer(file)
   }
 
+  // This function is used to load a DOCX file.
   const loadDOCX = (file) => {
     const reader = new FileReader()
     reader.onload = async (e) => {
@@ -491,6 +526,14 @@ const Create = () => {
     }
     reader.readAsArrayBuffer(file)
   }
+
+  // This function is used to handle the drag and drop of input and signature boxes.
+  const handleDrag = useCallback(
+    (e) => {
+      // ... existing code ...
+    },
+    [dragging, draggedElement, containerRef.current]
+  )
 
   const handleMouseDown = (index, type, page) => (e) => {
     e.preventDefault()
@@ -819,9 +862,11 @@ const Create = () => {
         userSelect: 'none',
         transition: isDraggingThisBox ? 'none' : 'all 0.2s ease',
         opacity: isDraggingThisBox ? 0.9 : 1,
-        minWidth: initialSize.width + 'px',
-        minHeight: initialSize.height + 'px',
+        // minWidth: initialSize.width + 'px',
+        // minHeight: initialSize.height + 'px',
         borderRadius: '8px',
+        minWidth: '50px',
+        minHeight: '50px',
       }
 
       return (
@@ -1118,6 +1163,7 @@ const Create = () => {
     }
   }
 
+  // This is the main render function for the Create component.
   return (
     <CContainer>
       <Toaster />
