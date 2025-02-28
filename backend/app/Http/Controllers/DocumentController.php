@@ -549,7 +549,7 @@ public function getDocument($filename)
             'signature_boxes' => 'required',
             'type' => 'nullable|in:template,agreement'
         ]);
-        return response()->json(['data' => $data]);
+        // return response()->json(['data' => $data]);
 
 
         $user = Auth::user();
@@ -558,7 +558,8 @@ public function getDocument($filename)
         $extension = $request->file('file')->getClientOriginalExtension();
         // Generate a unique filename and store the file
         $fileName = time() . '.' . $extension; // You can customize the file name if needed
-        $filePath = $request->file('file')->storeAs('documents', $fileName);
+        $fileHalfPath = $request->file('file')->storeAs('documents', $fileName);
+        $filePath = Storage::path($fileHalfPath);
 
         // Save document data to DB
         $document = Document::create([
@@ -595,10 +596,10 @@ public function getDocument($filename)
             ]);
         }
 
-        //        return response()->json([
-//            'message' => 'File uploaded and boxes saved successfully',
-//            'document_id' => $document->id,
-//        ], 200);
+    //            return response()->json([
+    //        'message' => 'File uploaded and boxes saved successfully',
+    //        'document_id' => $document->id,
+    //    ], 200);
 
 
         // Get the full document with relationships
