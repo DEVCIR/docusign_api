@@ -12,6 +12,7 @@ import
     CModalTitle,
     CRow,
     CSpinner,
+    CTooltip,
   } from '@coreui/react'
 import axios from 'axios'
 import mammoth from 'mammoth'
@@ -35,6 +36,7 @@ import
 import { renderAsync } from 'docx-preview'
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer'
 import { MdOutlineWidgets } from 'react-icons/md'
+import { Tooltip } from '@coreui/coreui'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
@@ -1097,110 +1099,65 @@ const Create = () =>
       return (
         <div
           key={index}
-          className={boxType === 'input' && 'rounded shadow-sm'}
+          className={boxType === 'input' ? 'rounded shadow-sm' : ''}
           style={boxStyle}
           onMouseDown={handleMouseDown( index, boxType, currentPage )}
           onMouseUp={handleMouseUp}
           tabIndex={0}
         >
-
           {isFocused && (
-            <div style={{ display: `${!isFocused ? "none" : 'flex'}`, }}>
+            <div style={{ display: isFocused ? 'flex' : 'none', overflow: 'hidden', height: '100%' }}>
               <input
                 type="checkbox"
                 className="form-check-input position-relative top-0 start-0"
                 checked={box.required || false}
                 onChange={( e ) =>
                 {
-                  e.stopPropagation()
-                  toggleRequired( index, boxType, currentPage )
-                }}  
+                  e.stopPropagation();
+                  toggleRequired( index, boxType, currentPage );
+                }}
                 onMouseDown={( e ) => e.stopPropagation()}
                 onClick={( e ) => e.stopPropagation()}
               />
-              <span
-                style={{
-                  width: '20000%',
-                  alignItems:'end',
-                  lineHeight: '0.5',
-                  marginBottom: '10px',
-                  cursor: 'pointer',
-                  zIndex: 1001,
-                  pointerEvents: 'auto',
-                }}
-                className="fs-3 text-secondary text-end cursor-pointer close-button"
-                onClick={( e ) =>
-                  
-                {
-                  
-                  e.stopPropagation()
-                  removeBox( index, boxType, currentPage )
-                }}
-              >
-                ×
-              </span>
+              <CTooltip content="Toggle Required" placement="top">
+                <span
+                  style={{
+                    marginLeft: 'auto',
+                    marginRight: '0px',
+                    alignItems: 'end',
+                    lineHeight: '0.5',
+                    cursor: 'pointer',
+                    zIndex: 1001,
+                    pointerEvents: 'auto',
+                  }}
+                  className="fs-3 text-secondary text-end cursor-pointer close-button"
+                  onClick={( e ) =>
+                  {
+                    e.stopPropagation();
+                    removeBox( index, boxType, currentPage );
+                  }}
+                >
+                  ×
+                </span>
+              </CTooltip>
 
-              <div
-                className="resize-handle"
-                data-direction="nw"
-                style={{
-                  position: 'absolute',
-                  left: -4,
-                  top: -4,
-                  width: 8,
-                  height: 8,
-                  backgroundColor: '#007bff',
-                  cursor: 'nwse-resize',
-                  pointerEvents: 'auto',
-                }}
-              />
-              <div
-                className="resize-handle"
-                data-direction="ne"
-                style={{
-                  position: 'absolute',
-                  right: -4,
-                  top: -4,
-                  width: 8,
-                  height: 8,
-                  backgroundColor: '#007bff',
-                  cursor: 'nesw-resize',
-                  pointerEvents: 'auto',
-                }}
-              />
-              <div
-                className="resize-handle"
-                data-direction="sw"
-                style={{
-                  position: 'absolute',
-                  left: -4,
-                  bottom: -4,
-                  width: 8,
-                  height: 8,
-                  backgroundColor: '#007bff',
-                  cursor: 'nesw-resize',
-                  pointerEvents: 'auto',
-                }}
-              />
-              <div
-                className="resize-handle"
-                data-direction="se"
-                style={{
-                  position: 'absolute',
-                  right: -4,
-                  bottom: -4,
-                  width: 8,
-                  height: 8,
-                  backgroundColor: '#007bff',
-                  cursor: 'nwse-resize',
-                  pointerEvents: 'auto',
-                }}
-              />
-              <div
-                className="position-relative mt-2 text-secondary w-100  justify-content-start align-items-start"
-                style={{ pointerEvents: 'auto' }}
-              >
-              </div>
+              <CTooltip content="Resize" placement="se">
+                <div
+                  className="resize-handle"
+                  data-direction="se"
+                  data-state-direction="se"
+                  style={{
+                    position: 'absolute',
+                    right: -4,
+                    bottom: -4,
+                    width: 8,
+                    height: 8,
+                    backgroundColor: '#007bff',
+                    cursor: 'nwse-resize',
+                    pointerEvents: 'auto',
+                  }}
+                />
+              </CTooltip>
             </div>
           )}
         </div>
@@ -1453,7 +1410,7 @@ const Create = () =>
                 // backgroundColor: '#f9f9f9',
                 // marginRight: '20px',
                 minWidth: "945px",
-                height: "100%",
+                // height: "100%",
                 maxWidth: "945px",
                 width: '80%',
                 height: 'max-content',
@@ -1477,21 +1434,21 @@ const Create = () =>
                 pdfPages={pdfPages}
                 renderPDFPage={renderPDFPage}
               />
+
               {renderBoxes( 'input' )}
               {renderBoxes( 'signature' )}
             </div>
             <div
               style={{
+                position: 'sticky',
+                top: '0',
                 width: '20%',
                 height: '600px',
                 overflowY: 'auto',
-                position: 'sticky',
-                top: '0',
                 boxShadow: '0px 0px 5px rgb(65 26 70)',
-                alignSelf: 'start',
-                // display: 'flex',
-                // flexDirection: 'column',
-                // alignItems: 'start',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
               }}
             >
               <CRow
