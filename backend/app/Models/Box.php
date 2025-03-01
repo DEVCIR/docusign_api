@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Box extends Model
 {
-    protected $fillable = ['document_id', 'type', 'field_type', 'top', 'left', 'required'];
+    protected $fillable = ['document_id', 'type', 'field_type', 'top', 'left', 'required','width','height'];
 
     public function document()
     {

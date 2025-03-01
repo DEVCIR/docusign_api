@@ -39,70 +39,108 @@ import { MdOutlineWidgets } from 'react-icons/md'
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
 // Memoized Document Component
-const Document = memo( ( { containerRef, fileType, docs, mainCanvasRef, pdfPages, renderPDFPage } ) =>
+const Document = memo( ( { containerRef, fileType, docs, pdfPages, renderPDFPage } ) =>
 {
-  // Memoize DocViewer to prevent unnecessary rerenders
-  const MemoizedDocViewer = memo( DocViewer )
-
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {fileType === 'pdf' && pdfPages.map( ( page, index ) => (
-        <div key={index}>
-          <div style={{ textAlign: 'center', margin: '10px 0' }}>
-            Page {index + 1}
-          </div>
-          <canvas
-            ref={( node ) =>
-            {
-              if ( node )
+      {fileType === 'pdf' &&
+        pdfPages.map( ( page, index ) => (
+          <div key={index} style={{ marginBottom: '20px' }}>
+            <div style={{ textAlign: 'center', margin: '10px 0' }}>Page {index + 1}</div>
+            <canvas
+              ref={( node ) =>
               {
-                const viewport = page.getViewport( { scale: 1 } );
-                node.width = viewport.width;
-                node.height = viewport.height;
-                renderPDFPage( page, node, viewport.width, viewport.height );
-              }
-            }}
-            style={{
-              display: 'block',
-              width: '100%',
-              height: 'auto',
-              zIndex: 1,
-            }}
-          />
-          {/* <hr style={{ height: "20px", backgroundColor: 'black' }} /> */}
-        </div>
-      ) )}
+                if ( node )
+                {
+                  const viewport = page.getViewport( { scale: 1 } );
+                  node.width = viewport.width;
+                  node.height = viewport.height;
+                  renderPDFPage( page, node, viewport.width, viewport.height );
+                }
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                height: 'auto',
+                border: '1px solid #ccc',
+              }}
+            />
+          </div>
+        ) )}
       {fileType === 'docx' && (
-        <>
-          <MemoizedDocViewer
-            documents={docs}
-            pluginRenderers={DocViewerRenderers}
-            theme={{ disableThemeScrollbar: false }}
-            style={{ height: '100%', overflow: 'hidden !important' }}
-            config={{
-              header: {
-                disableHeader: false,
-                disableFileName: false,
-                retainURLParams: false,
-              },
-            }}
-          />
-          <style>
-            {`
-            .hysiap {
-                overflow: hidden !important;
-            }
-
-            #proxy-renderer.hysiap {
-                overflow: hidden !important;
-            }
-            `}
-          </style>
-        </>
+        <DocViewer
+          documents={docs}
+          pluginRenderers={DocViewerRenderers}
+          style={{ height: '100%', overflow: 'hidden' }}
+        />
       )}
     </div>
-  )
-} )
+  );
+} );
+// const Document = memo( ( { containerRef, fileType, docs, mainCanvasRef, pdfPages, renderPDFPage } ) =>
+// {
+//   // Memoize DocViewer to prevent unnecessary rerenders
+//   const MemoizedDocViewer = memo( DocViewer )
+
+//   return (
+//     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
+//       {fileType === 'pdf' && pdfPages.map( ( page, index ) => (
+//         <div key={index}>
+//           <div style={{ textAlign: 'center', margin: '10px 0' }}>
+//             Page {index + 1}
+//           </div>
+//           <canvas
+//             ref={( node ) =>
+//             {
+//               if ( node )
+//               {
+//                 const viewport = page.getViewport( { scale: 1 } );
+//                 node.width = viewport.width;
+//                 node.height = viewport.height;
+//                 renderPDFPage( page, node, viewport.width, viewport.height );
+//               }
+//             }}
+//             style={{
+//               display: 'block',
+//               width: '100%',
+//               height: 'auto',
+//               zIndex: 1,
+//             }}
+//           />
+//           {/* <hr style={{ height: "20px", backgroundColor: 'black' }} /> */}
+//         </div>
+//       ) )}
+//       {fileType === 'docx' && (
+//         <>
+//           <MemoizedDocViewer
+//             documents={docs}
+//             pluginRenderers={DocViewerRenderers}
+//             theme={{ disableThemeScrollbar: false }}
+//             style={{ height: '100%', overflow: 'hidden !important' }}
+//             config={{
+//               header: {
+//                 disableHeader: false,
+//                 disableFileName: false,
+//                 retainURLParams: false,
+//               },
+//             }}
+//           />
+//           <style>
+//             {`
+//             .hysiap {
+//                 overflow: hidden !important;
+//             }
+
+//             #proxy-renderer.hysiap {
+//                 overflow: hidden !important;
+//             }
+//             `}
+//           </style>
+//         </>
+//       )}
+//     </div>
+//   )
+// } )
 
 const INITIAL_INPUT_SIZE = { width: 25, height: 25 }
 const INITIAL_SIGNATURE_SIZE = { width: 25, height: 25 }
@@ -703,7 +741,19 @@ const Create = () =>
         newBox.width = Math.min( newBox.width, containerWidth - newBox.left )
         newBox.height = Math.min( newBox.height, containerHeight - newBox.top )
 
+
+        // Convert pixel values to percentages
+        let newBox2 = ( newBox.left / containerWidth ) * 100;
+        let newBox3 = ( newBox.top / containerHeight ) * 100;
+        let newBox4 = ( newBox.width / containerWidth ) * 100;
+        let newBox5 = ( newBox.height / containerHeight ) * 100;
+        console.clear();
+        console.log( "newBox.left", newBox.left );
+        console.log( "newBox2", newBox2 );
+        console.log( "newBox.top", newBox.top );
+        console.log( "newBox3", newBox3 );
         updatedBoxes[ draggedElement.page ][ draggedElement.index ] = newBox
+
 
         if ( draggedElement.type === 'input' )
         {
@@ -724,6 +774,17 @@ const Create = () =>
         // Apply constraints
         newBox.left = Math.max( 0, Math.min( newLeft, containerWidth - newBox.width ) )
         newBox.top = Math.max( 0, Math.min( newTop, containerHeight - newBox.height ) )
+        let newBox2 = ( newBox.left / containerWidth ) * 100;
+        let newBox3 = ( newBox.top / containerHeight ) * 100;
+        // newBox.left=newBox2;
+        // newBox.top=newBox3;
+        console.clear();
+        console.log( "newBox.left", newBox.left );
+        console.log( "newBox2", newBox2 );
+        console.log( "containerWidth", containerWidth );
+        console.log( "newBox.top", newBox.top );
+        console.log( "newBox3", newBox3 );
+        console.log( "containerHeight", containerHeight );
 
         updatedBoxes[ draggedElement.page ][ draggedElement.index ] = newBox
 
@@ -871,11 +932,36 @@ const Create = () =>
         ...box,
       } ) )
 
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+
+    allInputBoxes.forEach( ( box ) =>
+    {
+      // Convert pixel values to percentages
+      box.left = ( box.left / containerWidth ) * 100;
+      box.top = ( box.top / containerHeight ) * 100;
+      box.width = ( box.width / containerWidth ) * 100;
+      box.height = ( box.height / containerHeight ) * 100;
+    } );
+    allSignatureBoxes.forEach( ( box ) =>
+    {
+      // Convert pixel values to percentages
+      box.left = ( box.left / containerWidth ) * 100;
+      box.top = ( box.top / containerHeight ) * 100;
+      box.width = ( box.width / containerWidth ) * 100;
+      box.height = ( box.height / containerHeight ) * 100;
+    } );
+
     formData.append( 'input_boxes', JSON.stringify( allInputBoxes ) )
     formData.append( 'signature_boxes', JSON.stringify( allSignatureBoxes ) )
     formData.append( 'page_count', documentPageCount )
     console.log( [ ...formData ] )
+    console.log( allInputBoxes )
 
+
+
+    // Log the updated allInputBoxes
     axios
       .post(
         type ? `${apiUrl}/api/upload-file?type=agreement` : `${apiUrl}/api/upload-file`,
@@ -948,12 +1034,40 @@ const Create = () =>
       const showIcon = false
       const initialSize = boxType === 'input' ? INITIAL_INPUT_SIZE : INITIAL_SIGNATURE_SIZE
 
+
+      // Get the parent container's dimensions
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const containerHeight = containerRect.height;
+
+      // Apply constraints
+      // newBox.left = Math.max( 0, Math.min( newBox.left, containerWidth - newBox.width ) )
+      // newBox.top = Math.max( 0, Math.min( newBox.top, containerHeight - newBox.height ) )
+      // newBox.width = Math.min( newBox.width, containerWidth - newBox.left )
+      // newBox.height = Math.min( newBox.height, containerHeight - newBox.top )
+
+      // Convert pixel values to percentages
+      const topPercentage = ( box.top / containerHeight ) * 100;
+      const leftPercentage = ( box.left / containerWidth ) * 100;
+      const widthPercentage = ( ( box.width || initialSize.width ) / containerWidth ) * 100;
+      const heightPercentage = ( ( box.height || initialSize.height ) / containerHeight ) * 100;
+
       const boxStyle = {
         position: 'absolute',
-        top: `${box.top}px`,
-        left: `${box.left}px`,
-        width: `${box.width || initialSize.width}px`,
-        height: `${box.height || initialSize.height}px`,
+        // top: `${box.top}px`,
+        // left: `${box.left}px`,
+        // width: `${box.width || initialSize.width}px`,
+        // height: `${box.height || initialSize.height}px`,
+
+        // top: `${box.top}%`,
+        // left: `${box.left}%`,
+        // width: `${box.width || initialSize.width}%`,
+        // height: `${box.height || initialSize.height}%`,
+
+        top: `${topPercentage}%`,
+        left: `${leftPercentage}%`,
+        width: `${widthPercentage}%`,
+        height: `${heightPercentage}%`,
         // width:  `${box.width}px`,
         // height: `${box.height}px`,
         padding: '0px !important',
@@ -1338,7 +1452,10 @@ const Create = () =>
                 // minHeight: '800px',
                 // backgroundColor: '#f9f9f9',
                 // marginRight: '20px',
-                width: '70%',
+                minWidth: "945px",
+                height: "100%",
+                maxWidth: "945px",
+                width: '80%',
                 height: 'max-content',
                 boxShadow: '0px 0px 5px rgb(65 26 70)',
                 // overflow: 'hidden !important',
@@ -1365,13 +1482,16 @@ const Create = () =>
             </div>
             <div
               style={{
-                width: '25%',
+                width: '20%',
                 height: '600px',
                 overflowY: 'auto',
+                position: 'sticky',
+                top: '0',
                 boxShadow: '0px 0px 5px rgb(65 26 70)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
+                alignSelf: 'start',
+                // display: 'flex',
+                // flexDirection: 'column',
+                // alignItems: 'start',
               }}
             >
               <CRow

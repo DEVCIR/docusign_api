@@ -1,6 +1,6 @@
 <IfModule mod_headers.c>
     # Allow multiple origins
-    SetEnvIf Origin "http(s)?://(localhost:3000|localhost:3001|example.com)$" AccessControlAllowOrigin=$0
+    SetEnvIf Origin "http(s)?://(localhost:3000|localhost:3001|localhost:3002|docusign.devcir.co|userdocusign.devcir.co|example.com)$" AccessControlAllowOrigin=$0
     Header set Access-Control-Allow-Origin %{AccessControlAllowOrigin}e env=AccessControlAllowOrigin
 
     # Allow methods and headers

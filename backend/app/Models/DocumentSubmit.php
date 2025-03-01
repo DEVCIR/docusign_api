@@ -17,6 +17,7 @@ class DocumentSubmit extends Model
         'data',
         'type',
         'status',
+        'pdfpath',
     ];
 
     protected $casts = [

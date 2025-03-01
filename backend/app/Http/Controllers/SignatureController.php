@@ -19,6 +19,7 @@ class SignatureController extends Controller
         // Validate the input data
         $validator = Validator::make($request->all(), [
             'signatureData' => 'required|string', // Signature data (base64 string)
+            'randomNumber' => 'nullable|string', // Signature data (base64 string)
         ]);
         $user = Auth::user();
         if ($validator->fails()) {
@@ -29,7 +30,7 @@ class SignatureController extends Controller
         $signature = Signature::create([
             'user_id' => $user->id,
             'signature_data' => $request->signatureData,
-            'sign_id' => rand(10000,10000000000),
+            'sign_id' =>  $request->randomNumber ?? rand(10000,10000000000),
         ]);
 
         return response()->json(['message' => 'Signature saved successfully', 'signature' => $signature], 201);

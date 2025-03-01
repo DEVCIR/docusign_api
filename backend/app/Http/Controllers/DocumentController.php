@@ -8,7 +8,6 @@ use App\Models\Box;
 use App\Models\Document;
 use App\Models\DocumentSubmit;
 use App\Models\OneTimeLink;
-use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Enumerable;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +18,8 @@ use Illuminate\Support\Str;
 use Symfony\Component\Mime\Email;
 use Throwable;
 use Illuminate\Support\Facades\Http;
+use Spatie\Browsershot\Browsershot;
+use TCPDF;
 
 class DocumentController extends Controller
 {
@@ -264,7 +265,7 @@ public function getDocument($filename)
 
     }
 
-    public function editDocument(Request $request, $id)
+    public function editDocument2(Request $request, $id)
     {
         // Validate input
         $request->validate([
@@ -375,8 +376,7 @@ public function getDocument($filename)
             'message' => 'Document submitted successfully!',
         ]);
     }
-
-    public function submitDocumentUser(Request $request, $id)
+public function submitDocumentUser(Request $request, $id)
     {
         // Validate the request data
         $data = $request->validate([
@@ -384,6 +384,91 @@ public function getDocument($filename)
             'data.*' => 'nullable',
             'status' => 'required|string',
         ]);
+
+        $screenshots = $request->input('screenshots');
+
+    // Create a new TCPDF instance
+    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+    // Set document information
+    $pdf->SetCreator(PDF_CREATOR);
+    $pdf->SetAuthor('Your Name');
+    $pdf->SetTitle('Screenshots PDF');
+    $pdf->SetSubject('Screenshots');
+    $pdf->SetKeywords('TCPDF, PDF, screenshots');
+
+    // Set default header/footer
+    $pdf->setHeaderFont([PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN]);
+    $pdf->setFooterFont([PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA]);
+
+    // Set margins
+    $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
+    $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
+    $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
+
+    // Set auto page breaks
+    $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+
+    // Add a page for each screenshot
+    foreach ($screenshots as $index => $screenshot) {
+        // Decode the base64 image
+        $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $screenshot));
+
+        // Save the image to a temporary file
+        $tempImagePath = storage_path('app/public/screenshot_' . time() . '_' . $index . '.png');
+        file_put_contents($tempImagePath, $imageData);
+
+        // Add a new page to the PDF
+        $pdf->AddPage();
+
+        // Get the dimensions of the image
+        list($width, $height) = getimagesize($tempImagePath);
+
+        // Calculate the scaling factor to fit the image on the page
+        $pageWidth = $pdf->getPageWidth() - PDF_MARGIN_LEFT - PDF_MARGIN_RIGHT;
+        $pageHeight = $pdf->getPageHeight() - PDF_MARGIN_TOP - PDF_MARGIN_BOTTOM;
+        $scale = min($pageWidth / $width, $pageHeight / $height);
+
+        // Add the image to the PDF
+        $pdf->Image($tempImagePath, PDF_MARGIN_LEFT, PDF_MARGIN_TOP, $width * $scale, $height * $scale);
+
+        // Delete the temporary image file
+        unlink($tempImagePath);
+    }
+
+    // Save the PDF to a file
+    $pdfpath='documents/screenshots_' . time() . '.pdf';
+    $pdfFilePath = storage_path('app/public/'.$pdfpath);
+    $pdf->Output($pdfFilePath, 'F');
+
+    // Optionally, store the PDF file path in the database
+    // Example: Pdf::create(['file_path' => $pdfFilePath]);
+
+    // Return a success response with the PDF file path
+    // return response()->json([
+    //     'message' => 'PDF created successfully!',
+    //     'pdf_file_path' => $pdfFilePath,
+    // ]);
+
+    //     $screenshots = $request->input('screenshots');
+
+    // // Process each screenshot
+    // foreach ($screenshots as $index => $screenshot) {
+    //     // Decode the base64 image
+    //     $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $screenshot));
+
+    //     // Save the image to the storage folder
+    //     $fileName = 'screenshot_' . time() . '_' . $index . '.png';
+    //     Storage::disk('public')->put($fileName, $imageData);
+
+    //     // Optionally, store the file path in the database
+    //     // Example: Screenshot::create(['file_path' => $fileName]);
+    // }
+
+    // // Return a success response
+    // return response()->json([
+    //     'message' => 'Screenshots processed successfully!',
+    // ]);
         $missing = [];
         foreach ($data as $key => $value) {
             if ($value === 'null') {
@@ -419,6 +504,7 @@ public function getDocument($filename)
                 $existingSubmission->update([
                     'status' => 'submit', // Update status
                     'data' => $request->input('data', ''), // Optionally update the data if necessary
+                    'pdfpath' => $pdfpath, // Optionally update the data if necessary
                 ]);
                 // Commit the transaction
                 DB::commit();
@@ -444,6 +530,53 @@ public function getDocument($filename)
         }
 
 
+    }
+    public function submitDocumentUser22(Request $request, $id)
+    {
+        // Validate the request data
+        $data = $request->validate([
+            'data' => 'required|array', // Ensure data is an array
+            'data.*' => 'required|not_in:null,undefined',
+            'status' => 'required|string',
+        ]);
+        $missing = [];
+        foreach ($data as $key => $value) {
+            if ($value === 'null') {
+                $missing[] = $key;
+            }
+        }
+
+        if (!empty($missing)) {
+            return response()->json([
+                'message' => 'Missing required fields',
+                'missing_fields' => $missing
+            ], 422);
+        }
+
+        $user = Auth::user();
+        // Check if the user has already submitted this document with the 'pending' status
+        $existingSubmission = DocumentSubmit::where('document_id', $id)
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->first(); // Retrieve the existing submission
+
+        // If the submission exists, update its status
+        if ($existingSubmission) {
+            // Update the existing submission's status
+            $existingSubmission->update([
+                'status' => 'submit', // Update status
+                'data' => $request->input('data', ''), // Optionally update the data if necessary
+            ]);
+
+            return response()->json([
+                'message' => 'Document status updated successfully!',
+            ]);
+        }
+
+        // If no submission exists with 'pending' status, return a conflict message
+        return response()->json([
+            'message' => 'User has not submitted this document or the status is not pending.',
+        ], 409); // 409 Conflict HTTP status code
     }
 
     public function submitDocumentUserPublic(Request $request, $id)
@@ -539,27 +672,216 @@ public function getDocument($filename)
         ]);
     }
 
-    public function uploadFile(Request $request)
+public function uploadFile(Request $request)
+
+    
     {
         // Validate input
-        $data = $request->validate([
+        $request->validate([
             'document_name' => 'required|string|max:255',
             'file' => 'required|file', // Limit size to 10MB
             'input_boxes' => 'required',
             'signature_boxes' => 'required',
             'type' => 'nullable|in:template,agreement'
         ]);
-        // return response()->json(['data' => $data]);
+        $user = Auth::user();
+
+        // Get/ the original file extension
+        $extension = $request->file('file')->getClientOriginalExtension();
+
+        // Generate a unique filename and store the file
+        $fileName = time() . '.' . $extension; // You can customize the file name if needed
+        $filePath = $request->file('file')->storeAs('documents', $fileName);
+        
+        // Store the file
+    // $extension = $request->file('file')->getClientOriginalExtension();
+    // $fileName = time() . '.' . $extension;
+    // $fileHalfPath = $request->file('file')->storeAs('documents', $fileName);
+    // $filePath = Storage::path($fileHalfPath);
+    // // Prepare the file for API conversion
+    // $fileFullPath = Storage::path($filePath);
+
+    // $apiKeys = [
+    //     "74421d1490msh2a6b45268f8992bp1cdfa9jsnc8e18cb43a9e",
+    //     "ec25b79af1msh0baf5741368e15ap13426ajsn2ce1a972f816",
+    //     "b992e01091msh9bfc982765bcee8p1531c5jsna7dedef1675d",
+    //     "1a3309e6f3msh3eaa439cc053491p1ee5afjsn21c6f45c5bae",
+    //     "578c272d40msh273545f4971294ap1eaebfjsn199adf08c1ee",
+    //     "9e93ba4cc4mshb6b8ec200622d09p14de9ajsna7a3fe078c91",
+    //     "3e05433c61mshd38a9a641f9953cp1aeb91jsn49ebf01376b7"
+    // ];
+
+    // $converted = false;
+    // $apiIndex = 0;
+    // $convertedPdf = null;
+
+    // while (!$converted && $apiIndex < count($apiKeys)) {
+    //     $currentApiKey = $apiKeys[$apiIndex];
+    //     $response = Http::attach('file', file_get_contents($fileFullPath), $fileName)
+    //         ->withHeaders([
+    //             'x-rapidapi-key' => $currentApiKey,
+    //             'x-rapidapi-host' => 'convert-to-pdf1.p.rapidapi.com',
+    //         ])
+    //         ->post('https://convert-to-pdf1.p.rapidapi.com/convert');
+
+    //     if ($response->successful()) {
+    //         // Get PDF data from response and save the file
+    //         $pdfContent = $response->body();
+    //         $pdfFileName = time() . '.pdf';
+    //         $pdfFilePath = 'documents/' . $pdfFileName;
+    //         Storage::put($pdfFilePath, $pdfContent);
+    //         $converted = true;
+    //         $convertedPdf = $pdfFilePath;
+    //     } else {
+    //         // Log or handle error
+    //         $apiIndex++;
+    //     }
+    // }
+        // Save document data to DB
+        $document = Document::create([
+            'name' => $request->document_name,
+            'path' => $filePath,
+            'input_boxes' => $request->input_boxes,
+            'signature_boxes' => $request->signature_boxes,
+            'type' => $request->type ?? 'template',
+            'user_id' => $user->id,
+        ]);
+
+        $inputBoxes = json_decode($request->input_boxes, true);
+        $signatureBoxes = json_decode($request->signature_boxes, true);
+
+        // Save input and signature boxes to DB
+        foreach ($inputBoxes as $box) {
+            Box::create([
+                'document_id' => $document->id,
+                'type' => 'input',
+                'field_type' => $box['fieldType'],
+                'top' => $box['top'],
+                'left' => $box['left'],
+                'required' => $box['required'] ?? false,
+                'width' => $box['width'] ?? 350,
+                'height' => $box['height'] ?? 50,
+                'is_expanded' => $box['isExpanded'] ?? false
+            ]);
+        }
+
+        foreach ($signatureBoxes as $box) {
+            Box::create([
+                'document_id' => $document->id,
+                'type' => 'signature',
+                'top' => $box['top'],
+                'left' => $box['left'],
+                'required' => $box['required'] ?? false,
+                'width' => $box['width'] ?? 350,
+                'height' => $box['height'] ?? 50,
+                'is_expanded' => $box['isExpanded'] ?? false
+            ]);
+        }
+
+        //        return response()->json([
+//            'message' => 'File uploaded and boxes saved successfully',
+//            'document_id' => $document->id,
+//        ], 200);
 
 
+        // Get the full document with relationships
+        $documentWithRelations = Document::with(['user', 'boxes'])->find($document->id);
+
+        return response()->json([
+            'message' => 'File uploaded and boxes saved successfully',
+            'document' => $documentWithRelations
+        ], 200);
+    }
+
+
+public function editDocument(Request $request, $id)
+    {
+        // Validate input
+        $request->validate([
+            'document_name' => 'required|string|max:255',
+            'input_boxes' => 'required',
+            'signature_boxes' => 'required',
+            'type' => 'nullable|in:template,agreement'
+        ]);
+
+        $user = Auth::user();
+
+        // Find the existing document
+        $document = Document::findOrFail($id);
+
+        // Update document data
+        $document->update([
+            'name' => $request->document_name,
+            'input_boxes' => $request->input_boxes,
+            'signature_boxes' => $request->signature_boxes,
+            'type' => $request->type ?? $document->type,
+        ]);
+
+        // Delete existing boxes
+        Box::where('document_id', $id)->delete();
+
+        // Save input and signature boxes to DB
+        $inputBoxes = json_decode($request->input_boxes, true);
+        $signatureBoxes = json_decode($request->signature_boxes, true);
+
+        foreach ($inputBoxes as $box) {
+            Box::create([
+                'document_id' => $document->id,
+                'type' => 'input',
+                'field_type' => $box['fieldType'],
+                'top' => $box['top'],
+                'left' => $box['left'],
+                'required' => $box['required'] ?? false,
+                'width' => $box['width'] ?? 350,
+                'height' => $box['height'] ?? 50,
+                'is_expanded' => $box['isExpanded'] ?? false
+            ]);
+        }
+
+        foreach ($signatureBoxes as $box) {
+            Box::create([
+                'document_id' => $document->id,
+                'type' => 'signature',
+                'top' => $box['top'],
+                'left' => $box['left'],
+                'required' => $box['required'] ?? false,
+                'width' => $box['width'] ?? 350,
+                'height' => $box['height'] ?? 50,
+                'is_expanded' => $box['isExpanded'] ?? false
+            ]);
+        }
+
+        // Get the full document with relationships
+        $documentWithRelations = Document::with(['user', 'boxes'])->find($document->id);
+
+        // Return response
+        return response()->json([
+            'message' => 'Document updated successfully',
+            'document' => $documentWithRelations
+        ], 200);
+    }
+
+
+    public function uploadFile222(Request $request)
+
+    
+    {
+        // Validate input
+        $request->validate([
+            'document_name' => 'required|string|max:255',
+            'file' => 'required|file', // Limit size to 10MB
+            'input_boxes' => 'required',
+            'signature_boxes' => 'required',
+            'type' => 'nullable|in:template,agreement'
+        ]);
         $user = Auth::user();
 
         // Get the original file extension
         $extension = $request->file('file')->getClientOriginalExtension();
+
         // Generate a unique filename and store the file
         $fileName = time() . '.' . $extension; // You can customize the file name if needed
-        $fileHalfPath = $request->file('file')->storeAs('documents', $fileName);
-        $filePath = Storage::path($fileHalfPath);
+        $filePath = $request->file('file')->storeAs('documents', $fileName);
 
         // Save document data to DB
         $document = Document::create([
@@ -596,10 +918,10 @@ public function getDocument($filename)
             ]);
         }
 
-    //            return response()->json([
-    //        'message' => 'File uploaded and boxes saved successfully',
-    //        'document_id' => $document->id,
-    //    ], 200);
+        //        return response()->json([
+//            'message' => 'File uploaded and boxes saved successfully',
+//            'document_id' => $document->id,
+//        ], 200);
 
 
         // Get the full document with relationships
