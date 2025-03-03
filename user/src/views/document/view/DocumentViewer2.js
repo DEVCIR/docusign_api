@@ -536,12 +536,13 @@ const DocumentViewer = () => {
           setDocs([newDoc])
         }
       } catch (err) {
-        setError( err.message )
+        setError(err.message)
+      } finally {
+        setLoading(false)
       }
     }
 
     fetchDocument()
-    // setLoading( false )
   }, [])
 
   const initializeFormData = (document) => {
@@ -567,7 +568,6 @@ const DocumentViewer = () => {
             }
           })
         }
-        setLoading( false )
       })
       .catch((err) => setError(err.message))
   }
@@ -835,12 +835,8 @@ const DocumentViewer = () => {
     'file',
   ]
 
-  // const MemoizedDocument = memo(Document)
-  return loading ? (
-    <div className='d-flex justify-content-center align-items-center vh-100'>
-      <CSpinner color='primary' />
-    </div>
-  ) : (
+  const MemoizedDocument = memo(Document)
+  return (
     <>
       <Toaster />
       <style>
@@ -922,7 +918,6 @@ const DocumentViewer = () => {
           style={{
             minWidth: '945px',
             height: 'max-content',
-            minHeight: '1222.46px',
             maxWidth: '945px',
             position: 'relative',
             minHeight: '800px',
