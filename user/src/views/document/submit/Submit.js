@@ -183,10 +183,6 @@
 
 // export default Submit
 
-
-
-
-
 // import React, { useEffect, useState } from 'react'
 // import {
 //   CButton,
@@ -379,10 +375,7 @@
 
 // export default Submit
 
-
-
-
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react'
 import {
   CButton,
   CContainer,
@@ -398,129 +391,133 @@ import {
   CTableHead,
   CTableHeaderCell,
   CTableRow,
-} from '@coreui/react';
-import { apiUrl } from 'src/components/Config/Config';
-import axios from 'axios';
-import { useSearchParams } from 'react-router-dom';
-import * as pdfjsLib from 'pdfjs-dist';
-import 'pdfjs-dist/web/pdf_viewer.css'; // Optional CSS for better rendering
+} from '@coreui/react'
+import { apiUrl } from 'src/components/Config/Config'
+import axios from 'axios'
+import { useSearchParams } from 'react-router-dom'
+import * as pdfjsLib from 'pdfjs-dist'
+import 'pdfjs-dist/web/pdf_viewer.css' // Optional CSS for better rendering
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
 const Submit = () => {
-  const [searchParams] = useSearchParams();
-  const type = searchParams.get('type');
-  const [submissions, setSubmissions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [viewModalVisible, setViewModalVisible] = useState(false);
-  const [currentSubmission, setCurrentSubmission] = useState(null);
-  const [pdfPages, setPdfPages] = useState([]);
-  const [isPdfLoading, setIsPdfLoading] = useState(false); // State for PDF loading spinner
-  const [isViewLoading, setIsViewLoading] = useState(false); // State for "View" button spinner
-  const pdfContainerRef = useRef(null); // Ref to hold the container for PDF pages
+  const [ searchParams ] = useSearchParams()
+  const type = searchParams.get( 'type' )
+  const [ submissions, setSubmissions ] = useState( [] )
+  const [ loading, setLoading ] = useState( true )
+  const [ viewModalVisible, setViewModalVisible ] = useState( false )
+  const [ currentSubmission, setCurrentSubmission ] = useState( null )
+  const [ pdfPages, setPdfPages ] = useState( [] )
+  const [ isPdfLoading, setIsPdfLoading ] = useState( false ) // State for PDF loading spinner
+  const [ isViewLoading, setIsViewLoading ] = useState( false ) // State for "View" button spinner
+  const pdfContainerRef = useRef( null ) // Ref to hold the container for PDF pages
 
   useEffect(() => {
-    fetchSubmissions();
-  }, []);
+    fetchSubmissions()
+  }, [] )
 
   const fetchSubmissions = async () => {
     try {
       const response = await axios.get(
         type ? `${apiUrl}/api/user/submissions?type=agreement` : `${apiUrl}/api/user/submissions`,
-      );
-      setSubmissions(response.data.submissions);
-      setLoading(false);
+      )
+      setSubmissions( response.data.submissions )
+      setLoading( false )
     } catch (error) {
-      console.error('Error fetching submissions:', error);
-      setLoading(false);
+      console.error( 'Error fetching submissions:', error )
+      setLoading( false )
     }
-  };
+  }
 
   const handleViewSubmission = async (submission) => {
     try {
-      setIsViewLoading(true); // Show spinner on "View" button
+      setIsViewLoading( true ) // Show spinner on "View" button
       // Fetch specific submission data using the documentId
       const response = await axios.get(
         type
           ? `${apiUrl}/api/user/submissions/${submission.document_id}?type=agreement`
           : `${apiUrl}/api/user/submissions/${submission.document_id}`,
-      );
+      )
 
       // Set the fetched document and submission data to display in the modal
-      const documentData = response.data[0].document;
-      const submissionDetails = response.data[0].data;
-      const pdfpath = response.data[0].pdfpath;
+      const documentData = response.data[ 0 ].document
+      const submissionDetails = response.data[ 0 ].data
+      const pdfpath = response.data[ 0 ].pdfpath
 
       setCurrentSubmission({
         ...submission,
         documentData: documentData,
         submissionDetails: submissionDetails,
         pdfpath: pdfpath,
-      });
+      } )
 
       // Load and render the PDF
-      await loadPdf2(pdfpath);
-      setViewModalVisible(true);
+      await loadPdf2( pdfpath )
+      setViewModalVisible( true )
     } catch (error) {
-      console.error('Error fetching submission details:', error);
+      console.error( 'Error fetching submission details:', error )
     } finally {
-      setIsViewLoading(false); // Hide spinner on "View" button
+      setIsViewLoading( false ) // Hide spinner on "View" button
     }
-  };
+  }
 
   const loadPdf2 = (path) => {
-    setIsPdfLoading(true); // Show spinner in modal while PDF is loading
-    const pdfUrl = `${apiUrl}/my/${path}`;
+    setIsPdfLoading( true ) // Show spinner in modal while PDF is loading
+    const pdfUrl = `${apiUrl}/my/${path}`
     pdfjsLib
       .getDocument(pdfUrl)
       .promise.then((pdf) => {
-        const pages = [];
+        const pages = []
         for (let i = 1; i <= pdf.numPages; i++) {
           pdf.getPage(i).then((page) => {
-            const viewport = page.getViewport({ scale: 1.5 });
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+            const viewport = page.getViewport( { scale: 1.5 } )
+            const canvas = document.createElement( 'canvas' )
+            const context = canvas.getContext( '2d' )
+            canvas.height = viewport.height
+            canvas.width = viewport.width
 
-            page.render({
-              canvasContext: context,
-              viewport: viewport,
-            }).promise.then(() => {
-              pages.push(canvas);
-              if (pages.length === pdf.numPages) {
-                setPdfPages(pages);
-                setIsPdfLoading(false); // Hide spinner after PDF is loaded
-              }
-            });
-          });
+            page
+              .render( {
+                canvasContext: context,
+                viewport: viewport,
+              } )
+              .promise.then( () =>
+              {
+                pages.push( canvas )
+                if ( pages.length === pdf.numPages )
+                {
+                  setPdfPages( pages )
+                  setIsPdfLoading( false ) // Hide spinner after PDF is loaded
+                }
+              } )
+          } )
         }
       })
       .catch((err) => {
-        console.error('Error loading PDF:', err);
-        setIsPdfLoading(false); // Hide spinner on error
-      });
-  };
+        console.error( 'Error loading PDF:', err )
+        setIsPdfLoading( false ) // Hide spinner on error
+      } )
+  }
 
   useEffect(() => {
     if (pdfPages.length > 0 && pdfContainerRef.current) {
       // Clear the container before appending new canvases
-      pdfContainerRef.current.innerHTML = '';
+      pdfContainerRef.current.innerHTML = ''
       pdfPages.forEach((canvas) => {
-        pdfContainerRef.current.appendChild(canvas);
-      });
+        pdfContainerRef.current.appendChild( canvas )
+      } )
     }
-  }, [pdfPages]);
+  }, [ pdfPages ] )
 
   const handleCloseModal = () => {
-    setViewModalVisible(false);
-    setCurrentSubmission(null); // Reset the submission data
-    setPdfPages([]); // Clear the PDF pages
-  };
+    setViewModalVisible( false )
+    setCurrentSubmission( null ) // Reset the submission data
+    setPdfPages( [] ) // Clear the PDF pages
+  }
 
   const capitalizeFirstLetter = (string) => {
-    return string.charAt(0).toUpperCase() + string.slice(1);
-  };
+    return string.charAt( 0 ).toUpperCase() + string.slice( 1 )
+  }
 
   return (
     <CContainer>
@@ -570,23 +567,19 @@ const Submit = () => {
               ))}
             </CTableBody>
           </CTable>
-
-          <CModal visible={viewModalVisible} onClose={handleCloseModal} size="lg">
+            <CModal visible={viewModalVisible} onClose={handleCloseModal} size='xl'>
             <CModalHeader>
               <CModalTitle>View Submission</CModalTitle>
             </CModalHeader>
             <CModalBody>
               {currentSubmission ? (
-                <>
-                  <p>
-                    <strong>File:</strong>
-                  </p>
+                  <>
                   {isPdfLoading ? (
-                    <div className="text-center">
-                      <CSpinner color="primary" /> {/* Show spinner while PDF is loading */}
+                      <div className='text-center'>
+                        <CSpinner color='primary' /> {/* Show spinner while PDF is loading */}
                     </div>
                   ) : (
-                    <div ref={pdfContainerRef}></div>
+                        <div style={{ textAlign: 'center' }} ref={pdfContainerRef}></div>
                   )}
                 </>
               ) : (
@@ -599,7 +592,9 @@ const Submit = () => {
               </CButton>
               <CButton
                 color='primary'
-                onClick={() => window.open(`${apiUrl}/my/${currentSubmission.pdfpath}`, '_blank')}
+                  onClick={() =>
+                    window.open( `${apiUrl}/public/storage/${currentSubmission.pdfpath}`, '_blank' )
+                  }
               >
                 Download PDF
               </CButton>
@@ -608,7 +603,7 @@ const Submit = () => {
         </>
       )}
     </CContainer>
-  );
-};
+  )
+}
 
-export default Submit;
+export default Submit
