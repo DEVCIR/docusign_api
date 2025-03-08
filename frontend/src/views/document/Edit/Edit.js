@@ -25,6 +25,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 }
 const MIN_SIZE = 20
 
+
 // Replace the existing clampBoxPosition function
 const clampBoxPosition = (box, containerWidth, containerHeight) => {
   // Ensure numeric values for position and size
@@ -464,26 +465,28 @@ const Edit = () => {
   }
 
   const handleMouseDown = (index, type, page) => (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (
-      e.target.type === 'checkbox' ||
-      e.target.classList.contains('close-button') ||
-      e.target.classList.contains('resize-handle')
+        e.target.type === 'checkbox' ||
+        e.target.classList.contains('close-button') ||
+        e.target.classList.contains('resize-handle')
     )
-      return
+        return;
 
-    const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index]
-    const containerRect = containerRef.current.getBoundingClientRect()
+    const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index];
+    const containerRect = containerRef.current.getBoundingClientRect();
+
+    // Calculate the offset from the mouse position to the box's position
     setDraggedElement({
-      index,
-      type,
-      page,
-      startX: e.clientX - containerRect.left - box.left,
-      startY: e.clientY - containerRect.top - box.top,
-    })
-    setDragging(true)
-    setFocusedBox({ index, type, page })
-  }
+        index,
+        type,
+        page,
+        startX: e.clientX - containerRect.left - box.left * (containerRect.width / 100),
+        startY: e.clientY - containerRect.top - box.top * (containerRect.height / 100),
+    });
+    setDragging(true);
+    setFocusedBox({ index, type, page });
+  };
 
   const handleResizeMouseDown = (index, type, page, direction) => (e) => {
     e.preventDefault();
@@ -520,16 +523,16 @@ const Edit = () => {
                     ? inputBoxes[draggedElement.page][draggedElement.index]
                     : signatureBoxes[draggedElement.page][draggedElement.index];
 
-            // Calculate new left and top as percentages
-            const newLeft = Math.max(0, Math.min((currentX / containerWidth) * 100, 100 - (box.width || 0)));
-            const newTop = Math.max(0, Math.min((currentY / containerHeight) * 100, 100 - (box.height || 0)));
+            // Calculate new left and top based on the initial offset
+            const newLeft = Math.max(0, Math.min((currentX - draggedElement.startX) / containerWidth * 100, 100 - (box.width || 0)));
+            const newTop = Math.max(0, Math.min((currentY - draggedElement.startY) / containerHeight * 100, 100 - (box.height || 0)));
 
             const updatedBoxes =
                 draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes };
             updatedBoxes[draggedElement.page][draggedElement.index] = {
                 ...box,
-                left: newLeft, // Set new left directly
-                top: newTop, // Set new top directly
+                left: newLeft,
+                top: newTop,
             };
 
             if (draggedElement.type === 'input') {
@@ -545,19 +548,20 @@ const Edit = () => {
                     ? inputBoxes[resizingElement.page][resizingElement.index]
                     : signatureBoxes[resizingElement.page][resizingElement.index];
 
-            let newWidth = (currentX / containerWidth) * 100; // Calculate new width as percentage
-            let newHeight = (currentY / containerHeight) * 100; // Calculate new height as percentage
+            // Calculate new width and height based on mouse movement
+            let newWidth = Math.max(0, Math.min((currentX / containerWidth) * 100, 100));
+            let newHeight = Math.max(0, Math.min((currentY / containerHeight) * 100, 100));
 
             const updatedBoxes =
                 resizingElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes };
             updatedBoxes[resizingElement.page][resizingElement.index] = clampBoxPosition(
                 {
                     ...box,
-                    width: newWidth, // Set new width directly
-                    height: newHeight, // Set new height directly
+                    width: newWidth,
+                    height: newHeight,
                 },
-                100, // Use 100% as the container width for clamping
-                100, // Use 100% as the container height for clamping
+                100,
+                100,
             );
 
             if (resizingElement.type === 'input') {
