@@ -493,6 +493,8 @@ const Edit = () => {
     e.stopPropagation();
     const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index];
     const containerRect = containerRef.current.getBoundingClientRect();
+
+    // Capture the initial size and position
     setResizingElement({
         index,
         type,
@@ -500,6 +502,8 @@ const Edit = () => {
         direction,
         startX: e.clientX - containerRect.left,
         startY: e.clientY - containerRect.top,
+        originalWidth: box.width,
+        originalHeight: box.height,
         originalLeft: box.left,
         originalTop: box.top,
     });
@@ -549,8 +553,8 @@ const Edit = () => {
                     : signatureBoxes[resizingElement.page][resizingElement.index];
 
             // Calculate new width and height based on mouse movement
-            let newWidth = Math.max(0, Math.min((currentX / containerWidth) * 100, 100));
-            let newHeight = Math.max(0, Math.min((currentY / containerHeight) * 100, 100));
+            let newWidth = Math.max(0, Math.min(resizingElement.originalWidth + (currentX - resizingElement.startX) / containerWidth * 100, 100));
+            let newHeight = Math.max(0, Math.min(resizingElement.originalHeight + (currentY - resizingElement.startY) / containerHeight * 100, 100));
 
             const updatedBoxes =
                 resizingElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes };
