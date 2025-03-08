@@ -39,7 +39,7 @@ import { MdOutlineWidgets } from 'react-icons/md'
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
 // Memoized Document Component
-const Document = memo( ( { containerRef, fileType, docs, pdfPages, renderPDFPage, onMouseMove } ) =>
+export const Document = memo( ( { containerRef, fileType, docs, pdfPages, renderPDFPage, onMouseMove } ) =>
 {
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>

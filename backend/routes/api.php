@@ -2,11 +2,9 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SignatureController;
-
 use App\Http\Controllers\DocumentController;
 
 // Authentication Routes
@@ -22,7 +20,7 @@ Route::get('/storage/documents/{filename}', [DocumentController::class, 'getDocu
 Route::get('/documents/public/{id}/{emailParam}/{tokenParam}', [DocumentController::class, 'showDocumentPublic']);
 Route::post('/user/documents/{documentId}/public/submit', [DocumentController::class, 'submitDocumentUserPublic']);
 Route::middleware(['auth:sanctum'])->group(function () {
-    
+
     // Create
     Route::post('/upload-file', [DocumentController::class, 'uploadFile']);
     Route::post('/upload-file2', [DocumentController::class, 'uploadFile2']);
@@ -40,17 +38,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/documents', [DocumentController::class, 'index']);
     Route::get('/documents/{id}', [DocumentController::class, 'showDocument']);
     // End List
-    
-    
+
+
     Route::get('/submissions', [DocumentController::class, 'showSubmissions']); // Fetch all submissions
-    Route::get('/submissions/{documentId}/{userId}', [DocumentController::class, 'showDocumentSubmissionsuser2']); // Fetch submissions for a specific document
+    Route::get('/submissions2/{documentId}/{userId}', [DocumentController::class, 'showDocumentSubmissionsuser2']); // Fetch submissions for a specific document
     Route::get('/submissions/{documentId}/email/{email}', [DocumentController::class, 'showDocumentSubmissionsuser3']); // Fetch submissions for a specific document
-    
+
     // Route::post('/register', [AuthController::class, 'register']);
     Route::get('/user/documents/', [DocumentController::class, 'user_index']);
     Route::get('/documents/pending/{id}', [DocumentController::class, 'showDocumentPending']);
 
-    
+
 
     Route::delete('/documents/{id}', [DocumentController::class, 'deleteDocument']);
     Route::post('/user/documents/{documentId}/submit', [DocumentController::class, 'submitDocumentUser']);

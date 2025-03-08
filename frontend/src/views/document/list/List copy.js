@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import fs from 'fs'
-import { Document} from '../create/Create'
+import Document from '../create/Create'
 import {
   CButton,
   CContainer,
@@ -44,29 +44,23 @@ const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 }
 
 const renderPDFPage = async (page, canvas, width, height) => {
   try {
-    // Check if canvas is already being used
-    if (canvas.dataset.rendering === 'true') return;
+    const viewport = page.getViewport({ scale: 1 })
+    const scale = Math.min(width / viewport.width, height / viewport.height)
+    const scaledViewport = page.getViewport({ scale })
 
-    canvas.dataset.rendering = 'true';
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(width / viewport.width, height / viewport.height);
-    const scaledViewport = page.getViewport({ scale });
-
-    canvas.height = scaledViewport.height;
-    canvas.width = scaledViewport.width;
+    canvas.height = scaledViewport.height
+    canvas.width = scaledViewport.width
 
     const renderContext = {
-      canvasContext: canvas.getContext('2d', { alpha: false }),
+      canvasContext: canvas.getContext( '2d', { alpha: false}),
       viewport: scaledViewport,
-    };
-
-    await page.render(renderContext).promise;
-    canvas.dataset.rendering = 'false';
+    }
+    await page.render(renderContext).promise
   } catch (error) {
-    console.error('Error rendering PDF page:', error);
-    canvas.dataset.rendering = 'false';
+    console.error('Error rendering PDF page:', error)
   }
-};
+}
+
 const clampBoxPosition = (box, containerWidth, containerHeight) => ({
   ...box,
   left: Math.max(0, Math.min(box.left, containerWidth - (box.width || INITIAL_INPUT_SIZE.width))),
@@ -106,8 +100,6 @@ const List = () => {
   const [thumbnailForceUpdate, setThumbnailForceUpdate] = useState(0)
   const [currentItemIndex, setCurrentItemIndex] = useState(null)
   const floatingBoxRef = useRef(null)
-  const [isRendering, setIsRendering] = useState(false)
-  const [currentRenderPromise, setCurrentRenderPromise] = useState(null)
 
   useEffect(() => {
     fetchDocuments()
@@ -411,46 +403,27 @@ const List = () => {
     }
   }
 
-const renderPage = async (pageNumber, page) => {
-  if (!containerRef.current) return;
-
-  // Clear previous canvas elements
-  while (containerRef.current.firstChild) {
-    containerRef.current.removeChild(containerRef.current.firstChild);
+  const renderPage = async (pageNumber, page) => {
+    if (!mainCanvasRef.current || !containerRef.current) return
+    const containerWidth = pageToRender?.containerWidth || containerRef.current.offsetWidth
+    const viewport = page.getViewport({ scale: 1 })
+    const scale = containerWidth / viewport.width
+    const scaledViewport = page.getViewport({ scale })
+    const canvas = mainCanvasRef.current
+    const context = canvas.getContext('2d')
+    canvas.width = scaledViewport.width
+    canvas.height = scaledViewport.height
+    try {
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport,
+      }).promise
+      setCurrentPage(pageNumber)
+    } catch (error) {
+      console.error('Error rendering page:', error)
+      toast.error('Failed to render PDF page.', { duration: 3000, position: 'top-right' })
+    }
   }
-
-  // Create new canvas element
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-
-  try {
-    setIsRendering(true);
-    const containerWidth = containerRef.current.offsetWidth;
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = containerWidth / viewport.width;
-    const scaledViewport = page.getViewport({ scale });
-
-    // Set canvas dimensions
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
-
-    // Render the page to the new canvas
-    await page.render({
-      canvasContext: context,
-      viewport: scaledViewport,
-    }).promise;
-
-    // Append the new canvas to the container
-    containerRef.current.appendChild(canvas);
-    setCurrentPage(pageNumber);
-  } catch (error) {
-    console.error('Error rendering page:', error);
-    toast.error('Failed to render PDF page.', { duration: 3000, position: 'top-right' });
-  } finally {
-    setIsRendering(false);
-    setCurrentRenderPromise(null);
-  }
-};
 
   const handleMouseDown = (index, type, page) => (e) => {
     e.preventDefault()
@@ -922,27 +895,48 @@ const renderPage = async (pageNumber, page) => {
     })
   }
 
-const renderThumbnail = useCallback((page, index) => {
-  const containerWidth = 100;
-  const viewport = page.getViewport({ scale: 1 });
-  const scale = containerWidth / viewport.width;
-  const scaledViewport = page.getViewport({ scale });
+  const renderThumbnail = useCallback(
+    (page, index) => {
+      const containerWidth = 100
+      const viewport = page.getViewport({ scale: 1 })
+      const scale = containerWidth / viewport.width
+      const scaledViewport = page.getViewport({ scale })
 
-  return (
-    <div key={`thumbnail-${index}-${Date.now()}`}>
-      <canvas
-        ref={(node) => {
-          if (node && !node.dataset.rendered) {
-            renderPDFPage(page, node, scaledViewport.width, scaledViewport.height);
-            node.dataset.rendered = 'true';
-          }
-        }}
-      />
-      <div>Page {index + 1}</div>
-    </div>
-  );
-}, [currentPage]);
-
+      return (
+        <div
+          key={index}
+          onClick={() => {
+            if (currentPage !== index + 1) {
+              setPageToRender({
+                page,
+                pageNumber: index + 1,
+                containerWidth: containerRef.current?.offsetWidth,
+              })
+              setCurrentPage(index + 1)
+              setThumbnailForceUpdate((prev) => prev + 1)
+            }
+          }}
+          style={{
+            width: '100px',
+            height: 'auto',
+            cursor: 'pointer',
+            margin: '5px',
+          }}
+        >
+          <canvas
+            ref={(node) => {
+              if (node) {
+                renderPDFPage(page, node, scaledViewport.width, scaledViewport.height)
+              }
+            }}
+            style={{ width: '100px', height: 'auto' }}
+          />
+          <div style={{ textAlign: 'center' }}>Page {index + 1}</div>
+        </div>
+      )
+    },
+    [currentPage],
+  )
 
   const thumbnails = useMemo(() => {
     if (currentDocument?.path?.toLowerCase().endsWith('.pdf') && pdfPages.length) {

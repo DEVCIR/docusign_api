@@ -36,7 +36,7 @@ class DocumentController extends Controller
     }
 
 
-public function getDocument($filename)
+    public function getDocument($filename)
     {
         $filePath = 'documents/' . $filename;
 
@@ -128,6 +128,13 @@ public function getDocument($filename)
 
         return response()->json($document);
     }
+    public function showDocumentSubmissions2($documentId)
+    {
+        // Fetch document and its related submissions
+        $document = Document::with('documentSubmissions')->where('id', $documentId)->get();
+
+        return response()->json($document);
+    }
 
     public function showDocumentSubmissionsuser($documentId)
     {
@@ -201,7 +208,7 @@ public function getDocument($filename)
             // 'type' => 'nullable|in:template,agreement',
             'email.*' => 'email',
         ]);
-        
+
         // Check if the user has already submitted this document
         $existingSubmission = DocumentSubmit::where('document_id', $id)
             ->where('user_id', $request->input('user_id'))
@@ -376,7 +383,7 @@ public function getDocument($filename)
             'message' => 'Document submitted successfully!',
         ]);
     }
-public function submitDocumentUser(Request $request, $id)
+    public function submitDocumentUser(Request $request, $id)
     {
         // Validate the request data
         $data = $request->validate([
@@ -387,88 +394,88 @@ public function submitDocumentUser(Request $request, $id)
 
         $screenshots = $request->input('screenshots');
 
-    // Create a new TCPDF instance
-    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        // Create a new TCPDF instance
+        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 
-    // Set document information
-    $pdf->SetCreator(PDF_CREATOR);
-    $pdf->SetAuthor('Your Name');
-    $pdf->SetTitle('Screenshots PDF');
-    $pdf->SetSubject('Screenshots');
-    $pdf->SetKeywords('TCPDF, PDF, screenshots');
+        // Set document information
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('Your Name');
+        $pdf->SetTitle('Screenshots PDF');
+        $pdf->SetSubject('Screenshots');
+        $pdf->SetKeywords('TCPDF, PDF, screenshots');
 
-    // Set default header/footer
-    $pdf->setHeaderFont([PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN]);
-    $pdf->setFooterFont([PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA]);
+        // Set default header/footer
+        $pdf->setHeaderFont([PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN]);
+        $pdf->setFooterFont([PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA]);
 
-    // Set margins
-    $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
-    $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
-    $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
+        // Set margins
+        $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
+        $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
+        $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
 
-    // Set auto page breaks
-    $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+        // Set auto page breaks
+        $pdf->SetAutoPageBreak(true, PDF_MARGIN_BOTTOM);
 
-    // Add a page for each screenshot
-    foreach ($screenshots as $index => $screenshot) {
-        // Decode the base64 image
-        $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $screenshot));
+        // Add a page for each screenshot
+        foreach ($screenshots as $index => $screenshot) {
+            // Decode the base64 image
+            $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $screenshot));
 
-        // Save the image to a temporary file
-        $tempImagePath = storage_path('app/public/screenshot_' . time() . '_' . $index . '.png');
-        file_put_contents($tempImagePath, $imageData);
+            // Save the image to a temporary file
+            $tempImagePath = storage_path('app/public/screenshot_' . time() . '_' . $index . '.png');
+            file_put_contents($tempImagePath, $imageData);
 
-        // Add a new page to the PDF
-        $pdf->AddPage();
+            // Add a new page to the PDF
+            $pdf->AddPage();
 
-        // Get the dimensions of the image
-        list($width, $height) = getimagesize($tempImagePath);
+            // Get the dimensions of the image
+            list($width, $height) = getimagesize($tempImagePath);
 
-        // Calculate the scaling factor to fit the image on the page
-        $pageWidth = $pdf->getPageWidth() - PDF_MARGIN_LEFT - PDF_MARGIN_RIGHT;
-        $pageHeight = $pdf->getPageHeight() - PDF_MARGIN_TOP - PDF_MARGIN_BOTTOM;
-        $scale = min($pageWidth / $width, $pageHeight / $height);
+            // Calculate the scaling factor to fit the image on the page
+            $pageWidth = $pdf->getPageWidth() - PDF_MARGIN_LEFT - PDF_MARGIN_RIGHT;
+            $pageHeight = $pdf->getPageHeight() - PDF_MARGIN_TOP - PDF_MARGIN_BOTTOM;
+            $scale = min($pageWidth / $width, $pageHeight / $height);
 
-        // Add the image to the PDF
-        $pdf->Image($tempImagePath, PDF_MARGIN_LEFT, PDF_MARGIN_TOP, $width * $scale, $height * $scale);
+            // Add the image to the PDF
+            $pdf->Image($tempImagePath, PDF_MARGIN_LEFT, PDF_MARGIN_TOP, $width * $scale, $height * $scale);
 
-        // Delete the temporary image file
-        unlink($tempImagePath);
-    }
+            // Delete the temporary image file
+            unlink($tempImagePath);
+        }
 
-    // Save the PDF to a file
-    $pdfpath='documents/screenshots_' . time() . '.pdf';
-    $pdfFilePath = storage_path('app/public/'.$pdfpath);
-    $pdf->Output($pdfFilePath, 'F');
+        // Save the PDF to a file
+        $pdfpath = 'documents/screenshots_' . time() . '.pdf';
+        $pdfFilePath = storage_path('app/public/'.$pdfpath);
+        $pdf->Output($pdfFilePath, 'F');
 
-    // Optionally, store the PDF file path in the database
-    // Example: Pdf::create(['file_path' => $pdfFilePath]);
+        // Optionally, store the PDF file path in the database
+        // Example: Pdf::create(['file_path' => $pdfFilePath]);
 
-    // Return a success response with the PDF file path
-    // return response()->json([
-    //     'message' => 'PDF created successfully!',
-    //     'pdf_file_path' => $pdfFilePath,
-    // ]);
+        // Return a success response with the PDF file path
+        // return response()->json([
+        //     'message' => 'PDF created successfully!',
+        //     'pdf_file_path' => $pdfFilePath,
+        // ]);
 
-    //     $screenshots = $request->input('screenshots');
+        //     $screenshots = $request->input('screenshots');
 
-    // // Process each screenshot
-    // foreach ($screenshots as $index => $screenshot) {
-    //     // Decode the base64 image
-    //     $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $screenshot));
+        // // Process each screenshot
+        // foreach ($screenshots as $index => $screenshot) {
+        //     // Decode the base64 image
+        //     $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $screenshot));
 
-    //     // Save the image to the storage folder
-    //     $fileName = 'screenshot_' . time() . '_' . $index . '.png';
-    //     Storage::disk('public')->put($fileName, $imageData);
+        //     // Save the image to the storage folder
+        //     $fileName = 'screenshot_' . time() . '_' . $index . '.png';
+        //     Storage::disk('public')->put($fileName, $imageData);
 
-    //     // Optionally, store the file path in the database
-    //     // Example: Screenshot::create(['file_path' => $fileName]);
-    // }
+        //     // Optionally, store the file path in the database
+        //     // Example: Screenshot::create(['file_path' => $fileName]);
+        // }
 
-    // // Return a success response
-    // return response()->json([
-    //     'message' => 'Screenshots processed successfully!',
-    // ]);
+        // // Return a success response
+        // return response()->json([
+        //     'message' => 'Screenshots processed successfully!',
+        // ]);
         $missing = [];
         foreach ($data as $key => $value) {
             if ($value === 'null') {
@@ -672,9 +679,7 @@ public function submitDocumentUser(Request $request, $id)
         ]);
     }
 
-public function uploadFile(Request $request)
-
-    
+    public function uploadFile(Request $request)
     {
         // Validate input
         $request->validate([
@@ -692,51 +697,51 @@ public function uploadFile(Request $request)
         // Generate a unique filename and store the file
         $fileName = time() . '.' . $extension; // You can customize the file name if needed
         $filePath = $request->file('file')->storeAs('documents', $fileName);
-        
+
         // Store the file
-    // $extension = $request->file('file')->getClientOriginalExtension();
-    // $fileName = time() . '.' . $extension;
-    // $fileHalfPath = $request->file('file')->storeAs('documents', $fileName);
-    // $filePath = Storage::path($fileHalfPath);
-    // // Prepare the file for API conversion
-    // $fileFullPath = Storage::path($filePath);
+        // $extension = $request->file('file')->getClientOriginalExtension();
+        // $fileName = time() . '.' . $extension;
+        // $fileHalfPath = $request->file('file')->storeAs('documents', $fileName);
+        // $filePath = Storage::path($fileHalfPath);
+        // // Prepare the file for API conversion
+        // $fileFullPath = Storage::path($filePath);
 
-    // $apiKeys = [
-    //     "74421d1490msh2a6b45268f8992bp1cdfa9jsnc8e18cb43a9e",
-    //     "ec25b79af1msh0baf5741368e15ap13426ajsn2ce1a972f816",
-    //     "b992e01091msh9bfc982765bcee8p1531c5jsna7dedef1675d",
-    //     "1a3309e6f3msh3eaa439cc053491p1ee5afjsn21c6f45c5bae",
-    //     "578c272d40msh273545f4971294ap1eaebfjsn199adf08c1ee",
-    //     "9e93ba4cc4mshb6b8ec200622d09p14de9ajsna7a3fe078c91",
-    //     "3e05433c61mshd38a9a641f9953cp1aeb91jsn49ebf01376b7"
-    // ];
+        // $apiKeys = [
+        //     "74421d1490msh2a6b45268f8992bp1cdfa9jsnc8e18cb43a9e",
+        //     "ec25b79af1msh0baf5741368e15ap13426ajsn2ce1a972f816",
+        //     "b992e01091msh9bfc982765bcee8p1531c5jsna7dedef1675d",
+        //     "1a3309e6f3msh3eaa439cc053491p1ee5afjsn21c6f45c5bae",
+        //     "578c272d40msh273545f4971294ap1eaebfjsn199adf08c1ee",
+        //     "9e93ba4cc4mshb6b8ec200622d09p14de9ajsna7a3fe078c91",
+        //     "3e05433c61mshd38a9a641f9953cp1aeb91jsn49ebf01376b7"
+        // ];
 
-    // $converted = false;
-    // $apiIndex = 0;
-    // $convertedPdf = null;
+        // $converted = false;
+        // $apiIndex = 0;
+        // $convertedPdf = null;
 
-    // while (!$converted && $apiIndex < count($apiKeys)) {
-    //     $currentApiKey = $apiKeys[$apiIndex];
-    //     $response = Http::attach('file', file_get_contents($fileFullPath), $fileName)
-    //         ->withHeaders([
-    //             'x-rapidapi-key' => $currentApiKey,
-    //             'x-rapidapi-host' => 'convert-to-pdf1.p.rapidapi.com',
-    //         ])
-    //         ->post('https://convert-to-pdf1.p.rapidapi.com/convert');
+        // while (!$converted && $apiIndex < count($apiKeys)) {
+        //     $currentApiKey = $apiKeys[$apiIndex];
+        //     $response = Http::attach('file', file_get_contents($fileFullPath), $fileName)
+        //         ->withHeaders([
+        //             'x-rapidapi-key' => $currentApiKey,
+        //             'x-rapidapi-host' => 'convert-to-pdf1.p.rapidapi.com',
+        //         ])
+        //         ->post('https://convert-to-pdf1.p.rapidapi.com/convert');
 
-    //     if ($response->successful()) {
-    //         // Get PDF data from response and save the file
-    //         $pdfContent = $response->body();
-    //         $pdfFileName = time() . '.pdf';
-    //         $pdfFilePath = 'documents/' . $pdfFileName;
-    //         Storage::put($pdfFilePath, $pdfContent);
-    //         $converted = true;
-    //         $convertedPdf = $pdfFilePath;
-    //     } else {
-    //         // Log or handle error
-    //         $apiIndex++;
-    //     }
-    // }
+        //     if ($response->successful()) {
+        //         // Get PDF data from response and save the file
+        //         $pdfContent = $response->body();
+        //         $pdfFileName = time() . '.pdf';
+        //         $pdfFilePath = 'documents/' . $pdfFileName;
+        //         Storage::put($pdfFilePath, $pdfContent);
+        //         $converted = true;
+        //         $convertedPdf = $pdfFilePath;
+        //     } else {
+        //         // Log or handle error
+        //         $apiIndex++;
+        //     }
+        // }
         // Save document data to DB
         $document = Document::create([
             'name' => $request->document_name,
@@ -779,9 +784,9 @@ public function uploadFile(Request $request)
         }
 
         //        return response()->json([
-//            'message' => 'File uploaded and boxes saved successfully',
-//            'document_id' => $document->id,
-//        ], 200);
+        //            'message' => 'File uploaded and boxes saved successfully',
+        //            'document_id' => $document->id,
+        //        ], 200);
 
 
         // Get the full document with relationships
@@ -794,7 +799,7 @@ public function uploadFile(Request $request)
     }
 
 
-public function editDocument(Request $request, $id)
+    public function editDocument(Request $request, $id)
     {
         // Validate input
         $request->validate([
@@ -863,8 +868,6 @@ public function editDocument(Request $request, $id)
 
 
     public function uploadFile222(Request $request)
-
-    
     {
         // Validate input
         $request->validate([
@@ -919,9 +922,9 @@ public function editDocument(Request $request, $id)
         }
 
         //        return response()->json([
-//            'message' => 'File uploaded and boxes saved successfully',
-//            'document_id' => $document->id,
-//        ], 200);
+        //            'message' => 'File uploaded and boxes saved successfully',
+        //            'document_id' => $document->id,
+        //        ], 200);
 
 
         // Get the full document with relationships
@@ -935,69 +938,69 @@ public function editDocument(Request $request, $id)
 
 
     public function uploadFile2(Request $request)
-{
-    // Validate input
-    $request->validate([
-        'file' => 'required|file|mimes:doc,docx|max:10240', // Limit size to 10MB
-    ]);
+    {
+        // Validate input
+        $request->validate([
+            'file' => 'required|file|mimes:doc,docx|max:10240', // Limit size to 10MB
+        ]);
 
-    // Store the file
-    $extension = $request->file('file')->getClientOriginalExtension();
-    $fileName = time() . '.' . $extension;
-    $filePath = $request->file('file')->storeAs('documents', $fileName);
+        // Store the file
+        $extension = $request->file('file')->getClientOriginalExtension();
+        $fileName = time() . '.' . $extension;
+        $filePath = $request->file('file')->storeAs('documents', $fileName);
 
-    // Prepare the file for API conversion
-    $fileFullPath = Storage::path($filePath);
+        // Prepare the file for API conversion
+        $fileFullPath = Storage::path($filePath);
 
-    $apiKeys = [
-        "74421d1490msh2a6b45268f8992bp1cdfa9jsnc8e18cb43a9e",
-        "ec25b79af1msh0baf5741368e15ap13426ajsn2ce1a972f816",
-        "b992e01091msh9bfc982765bcee8p1531c5jsna7dedef1675d",
-        "1a3309e6f3msh3eaa439cc053491p1ee5afjsn21c6f45c5bae",
-        "578c272d40msh273545f4971294ap1eaebfjsn199adf08c1ee",
-        "9e93ba4cc4mshb6b8ec200622d09p14de9ajsna7a3fe078c91",
-        "3e05433c61mshd38a9a641f9953cp1aeb91jsn49ebf01376b7"
-    ];
+        $apiKeys = [
+            "74421d1490msh2a6b45268f8992bp1cdfa9jsnc8e18cb43a9e",
+            "ec25b79af1msh0baf5741368e15ap13426ajsn2ce1a972f816",
+            "b992e01091msh9bfc982765bcee8p1531c5jsna7dedef1675d",
+            "1a3309e6f3msh3eaa439cc053491p1ee5afjsn21c6f45c5bae",
+            "578c272d40msh273545f4971294ap1eaebfjsn199adf08c1ee",
+            "9e93ba4cc4mshb6b8ec200622d09p14de9ajsna7a3fe078c91",
+            "3e05433c61mshd38a9a641f9953cp1aeb91jsn49ebf01376b7"
+        ];
 
-    $converted = false;
-    $apiIndex = 0;
-    $convertedPdf = null;
+        $converted = false;
+        $apiIndex = 0;
+        $convertedPdf = null;
 
-    while (!$converted && $apiIndex < count($apiKeys)) {
-        $currentApiKey = $apiKeys[$apiIndex];
-        $response = Http::attach('file', file_get_contents($fileFullPath), $fileName)
-            ->withHeaders([
-                'x-rapidapi-key' => $currentApiKey,
-                'x-rapidapi-host' => 'convert-to-pdf1.p.rapidapi.com',
-            ])
-            ->post('https://convert-to-pdf1.p.rapidapi.com/convert');
+        while (!$converted && $apiIndex < count($apiKeys)) {
+            $currentApiKey = $apiKeys[$apiIndex];
+            $response = Http::attach('file', file_get_contents($fileFullPath), $fileName)
+                ->withHeaders([
+                    'x-rapidapi-key' => $currentApiKey,
+                    'x-rapidapi-host' => 'convert-to-pdf1.p.rapidapi.com',
+                ])
+                ->post('https://convert-to-pdf1.p.rapidapi.com/convert');
 
-        if ($response->successful()) {
-            // Get PDF data from response and save the file
-            $pdfContent = $response->body();
-            $pdfFileName = time() . '.pdf';
-            $pdfFilePath = 'documents/' . $pdfFileName;
-            Storage::put($pdfFilePath, $pdfContent);
-            $converted = true;
-            $convertedPdf = $pdfFilePath;
-        } else {
-            // Log or handle error
-            $apiIndex++;
+            if ($response->successful()) {
+                // Get PDF data from response and save the file
+                $pdfContent = $response->body();
+                $pdfFileName = time() . '.pdf';
+                $pdfFilePath = 'documents/' . $pdfFileName;
+                Storage::put($pdfFilePath, $pdfContent);
+                $converted = true;
+                $convertedPdf = $pdfFilePath;
+            } else {
+                // Log or handle error
+                $apiIndex++;
+            }
         }
-    }
 
-    if (!$converted) {
+        if (!$converted) {
+            return response()->json([
+                'message' => 'All API keys have failed or reached their limits. Please try again later.',
+            ], 500);
+        }
+
         return response()->json([
-            'message' => 'All API keys have failed or reached their limits. Please try again later.',
-        ], 500);
+            'message' => 'File uploaded and converted to PDF successfully',
+            'document' => $filePath,
+            'pdf' => $convertedPdf
+        ], 200);
     }
-
-    return response()->json([
-        'message' => 'File uploaded and converted to PDF successfully',
-        'document' => $filePath,
-        'pdf' => $convertedPdf
-    ], 200);
-}
 
     // Save Document with input fields and signature boxes
     public function saveDocument(Request $request)
@@ -1014,7 +1017,7 @@ public function editDocument(Request $request, $id)
         $file = $request->file('file');
         $path = $file->store('documents', 'public'); // Store the file in storage/app/public/documents folder
 
-        $document = new Document;
+        $document = new Document();
         $document->name = $validatedData['name'];
         $document->input_boxes = json_encode($validatedData['input_boxes']); // Save input box details as JSON
         $document->signature_boxes = json_encode($validatedData['signature_boxes'] ?? []); // Save signature box details
