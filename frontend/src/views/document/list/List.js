@@ -1140,7 +1140,7 @@ const renderThumbnail = useCallback((page, index) => {
                     <CButton
                       color="warning"
                       size="sm"
-                      onClick={() => handleEdit(document)}
+                      onClick={() => navigate(`/document/edit/${document.id}`)}
                       className="me-2"
                     >
                       Edit
@@ -1351,8 +1351,8 @@ const renderThumbnail = useCallback((page, index) => {
                       <FaPen style={{ marginRight: '5px' }} /> Add Signature
                     </CButton>
                   </CRow>
-                  </div>
-                  </div>
+                </div>
+              </div>
             </CModalBody>
             <CModalFooter>
               <CButton color="secondary" onClick={() => setEditModalVisible(false)}>
