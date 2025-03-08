@@ -506,74 +506,69 @@ const Edit = () => {
 
   const handleMouseMove = useCallback(
     (e) => {
-      if (!containerRef.current) return
+        if (!containerRef.current) return;
 
-      const containerRect = containerRef.current.getBoundingClientRect()
-      const containerWidth = containerRect.width
-      const containerHeight = containerRect.height
-      const currentX = e.clientX - containerRect.left
-      const currentY = e.clientY - containerRect.top
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const containerWidth = containerRect.width;
+        const containerHeight = containerRect.height;
+        const currentX = e.clientX - containerRect.left;
+        const currentY = e.clientY - containerRect.top;
 
-      if (dragging && draggedElement) {
-        const box =
-          draggedElement.type === 'input'
-            ? inputBoxes[draggedElement.page][draggedElement.index]
-            : signatureBoxes[draggedElement.page][draggedElement.index]
+        if (dragging && draggedElement) {
+            const box =
+                draggedElement.type === 'input'
+                    ? inputBoxes[draggedElement.page][draggedElement.index]
+                    : signatureBoxes[draggedElement.page][draggedElement.index];
 
-        const newLeft = currentX - draggedElement.startX
-        const newTop = currentY - draggedElement.startY
+            // Calculate new left and top as percentages
+            const newLeft = Math.max(0, Math.min((currentX / containerWidth) * 100, 100 - (box.width || 0)));
+            const newTop = Math.max(0, Math.min((currentY / containerHeight) * 100, 100 - (box.height || 0)));
 
-        const updatedBoxes =
-          draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
-        updatedBoxes[draggedElement.page][draggedElement.index] = {
-          ...box,
-          left: Math.max(
-            0,
-            Math.min(newLeft, containerWidth - (box.width || 130)),
-          ),
-          top: Math.max(
-            0,
-            Math.min(newTop, containerHeight - (box.height || 130)),
-          ),
+            const updatedBoxes =
+                draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes };
+            updatedBoxes[draggedElement.page][draggedElement.index] = {
+                ...box,
+                left: newLeft, // Set new left directly
+                top: newTop, // Set new top directly
+            };
+
+            if (draggedElement.type === 'input') {
+                setInputBoxes(updatedBoxes);
+            } else {
+                setSignatureBoxes(updatedBoxes);
+            }
         }
 
-        if (draggedElement.type === 'input') {
-          setInputBoxes(updatedBoxes)
-        } else {
-          setSignatureBoxes(updatedBoxes)
+        if (resizing && resizingElement) {
+            const box =
+                resizingElement.type === 'input'
+                    ? inputBoxes[resizingElement.page][resizingElement.index]
+                    : signatureBoxes[resizingElement.page][resizingElement.index];
+
+            let newWidth = (currentX / containerWidth) * 100; // Calculate new width as percentage
+            let newHeight = (currentY / containerHeight) * 100; // Calculate new height as percentage
+
+            const updatedBoxes =
+                resizingElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes };
+            updatedBoxes[resizingElement.page][resizingElement.index] = clampBoxPosition(
+                {
+                    ...box,
+                    width: newWidth, // Set new width directly
+                    height: newHeight, // Set new height directly
+                },
+                100, // Use 100% as the container width for clamping
+                100, // Use 100% as the container height for clamping
+            );
+
+            if (resizingElement.type === 'input') {
+                setInputBoxes(updatedBoxes);
+            } else {
+                setSignatureBoxes(updatedBoxes);
+            }
         }
-      }
-
-      if (resizing && resizingElement) {
-        const box =
-          resizingElement.type === 'input'
-            ? inputBoxes[resizingElement.page][resizingElement.index]
-            : signatureBoxes[resizingElement.page][resizingElement.index]
-
-        let newWidth = (currentX / containerWidth) * 100;
-        let newHeight = (currentY / containerHeight) * 100;
-
-        const updatedBoxes =
-          resizingElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
-        updatedBoxes[resizingElement.page][resizingElement.index] = clampBoxPosition(
-          {
-            ...box,
-            width: newWidth,
-            height: newHeight,
-          },
-          100,
-          100,
-        )
-
-        if (resizingElement.type === 'input') {
-          setInputBoxes(updatedBoxes)
-        } else {
-          setSignatureBoxes(updatedBoxes)
-        }
-      }
     },
     [dragging, draggedElement, resizing, resizingElement, inputBoxes, signatureBoxes],
-  )
+);
 
   const handleMouseUp = useCallback(() => {
     if (dragging) {
