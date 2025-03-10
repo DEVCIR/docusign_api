@@ -30,39 +30,31 @@ const clampBoxPosition = (box, containerWidth, containerHeight) => {
   // Ensure numeric values for position and size
   const left = typeof box.left === 'number' ? box.left : 0
   const top = typeof box.top === 'number' ? box.top : 0
-
-  console.log('')
-
   const width =
     typeof box.width === 'number'
       ? box.width
       : box.type === 'signature'
         ? INITIAL_SIGNATURE_SIZE.width
-        : 200
+        : INITIAL_INPUT_SIZE.width
   const height =
     typeof box.height === 'number'
       ? box.height
       : box.type === 'signature'
         ? INITIAL_SIGNATURE_SIZE.height
-        : 200
+        : INITIAL_INPUT_SIZE.height
 
   // Log the coordinates for debugging
   // console.log('Clamping box:', {
   //   original: { ...box },
   //   container: { containerWidth, containerHeight },
   // })
-  // console.clear();
-  console.log(box)
+
   return {
     ...box,
     left: Math.max(0, Math.min(left, containerWidth - width)),
     top: Math.max(0, Math.min(top, containerHeight - height)),
-    width: Math.max(0, Math.min(width, containerHeight - left)),
-    height: Math.max(0, Math.min(height, containerHeight - top)),
-    // width: Math.max( MIN_SIZE, Math.min( width, containerWidth - left ) ),
-    // width: 100,
-    // height: Math.max( MIN_SIZE, Math.min( height, containerHeight - top ) ),
-    // height: 100,
+    width: Math.max(MIN_SIZE, Math.min(width, containerWidth - left)),
+    height: Math.max(MIN_SIZE, Math.min(height, containerHeight - top)),
   }
 }
 
@@ -297,17 +289,18 @@ const Edit = () => {
           // height: typeof box.height === 'number' ? box.height : INITIAL_INPUT_SIZE.height,
           // left: typeof box.left === 'number' ? box.left : 0,
           // top: typeof box.top === 'number' ? box.top : 0,
-          width: box.width,
-          height: box.height,
-          left: box.left,
-          top: box.top,
+          width:  box.width,
+          height:  box.height,
+          left:  box.left,
+          top:  box.top,
         }
         inputBoxesByPage[box.page] = [...(inputBoxesByPage[box.page] || []), boxWithDimensions]
       })
 
       const signatureBoxesByPage = {}
-      signatureBoxesFromServer.forEach((box, index) => {
-        console.log(`Input Boxes from Server Signatureee ${index}`, box.width)
+      signatureBoxesFromServer.forEach( ( box, index ) =>
+        {
+          console.log( `Input Boxes from Server Signatureee ${index}`, box.width )
 
         const boxWithDimensions = {
           ...box,
@@ -316,13 +309,13 @@ const Edit = () => {
           left: box.left,
           top: box.top,
         }
-        console.log('DImenSIONAL SIgnaTue: ', boxWithDimensions)
+        console.log("DImenSIONAL SIgnaTue: ", boxWithDimensions)
         signatureBoxesByPage[box.page] = [
           ...(signatureBoxesByPage[box.page] || []),
           {
             ...box,
-            width: box.width,
-            height: box.height,
+            width: toString(2),
+            height: toString(2),
             left: box.left,
             top: box.top,
           },
@@ -336,19 +329,17 @@ const Edit = () => {
       // Apply clampBoxPosition to each box
       Object.keys(inputBoxesByPage).forEach((page) => {
         inputBoxesByPage[page] = inputBoxesByPage[page].map((box) =>
-          // console.log("ahsan",box)
           clampBoxPosition(box, containerWidth, containerHeight),
         )
       })
 
       Object.keys(signatureBoxesByPage).forEach((page) => {
         signatureBoxesByPage[page] = signatureBoxesByPage[page].map((box) =>
-          // console.log("ahsan",box)
           clampBoxPosition(box, containerWidth, containerHeight),
         )
-      })
+      } )
 
-      console.log('UPDATEDDDD => ', inputBoxesByPage)
+      console.log("UPDATEDDDD => ", inputBoxesByPage)
       setInputBoxes(inputBoxesByPage)
       setSignatureBoxes(signatureBoxesByPage)
       logBoxPositions()
@@ -390,7 +381,7 @@ const Edit = () => {
 
   const loadPDF = async (path) => {
     try {
-      const pdfUrl = `${apiUrl}/my/${path}`
+      const pdfUrl = `${apiUrl}/public/storage/${path}`
       const loadingTask = pdfjsLib.getDocument(pdfUrl)
       const pdf = await loadingTask.promise
       setDocumentPageCount(pdf.numPages)
@@ -472,14 +463,12 @@ const Edit = () => {
 
     const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index]
     const containerRect = containerRef.current.getBoundingClientRect()
-
-    // Calculate the offset from the mouse position to the box's position
     setDraggedElement({
       index,
       type,
       page,
-      startX: e.clientX - containerRect.left - box.left * (containerRect.width / 100),
-      startY: e.clientY - containerRect.top - box.top * (containerRect.height / 100),
+      startX: e.clientX - containerRect.left - box.left,
+      startY: e.clientY - containerRect.top - box.top,
     })
     setDragging(true)
     setFocusedBox({ index, type, page })
@@ -490,8 +479,6 @@ const Edit = () => {
     e.stopPropagation()
     const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index]
     const containerRect = containerRef.current.getBoundingClientRect()
-
-    // Capture the initial size and position
     setResizingElement({
       index,
       type,
@@ -499,10 +486,10 @@ const Edit = () => {
       direction,
       startX: e.clientX - containerRect.left,
       startY: e.clientY - containerRect.top,
-      originalWidth: box.width,
-      originalHeight: box.height,
       originalLeft: box.left,
       originalTop: box.top,
+      originalWidth: box.width || INITIAL_INPUT_SIZE.width,
+      originalHeight: box.height || INITIAL_INPUT_SIZE.height,
     })
     setResizing(true)
     setFocusedBox({ index, type, page })
@@ -524,28 +511,21 @@ const Edit = () => {
             ? inputBoxes[draggedElement.page][draggedElement.index]
             : signatureBoxes[draggedElement.page][draggedElement.index]
 
-        // Calculate new left and top based on the initial offset
-        const newLeft = Math.max(
-          0,
-          Math.min(
-            ((currentX - draggedElement.startX) / containerWidth) * 100,
-            100 - (box.width || 0),
-          ),
-        )
-        const newTop = Math.max(
-          0,
-          Math.min(
-            ((currentY - draggedElement.startY) / containerHeight) * 100,
-            100 - (box.height || 0),
-          ),
-        )
+        const newLeft = currentX - draggedElement.startX
+        const newTop = currentY - draggedElement.startY
 
         const updatedBoxes =
           draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
         updatedBoxes[draggedElement.page][draggedElement.index] = {
           ...box,
-          left: newLeft,
-          top: newTop,
+          left: Math.max(
+            0,
+            Math.min(newLeft, containerWidth - (box.width || INITIAL_INPUT_SIZE.width)),
+          ),
+          top: Math.max(
+            0,
+            Math.min(newTop, containerHeight - (box.height || INITIAL_INPUT_SIZE.height)),
+          ),
         }
 
         if (draggedElement.type === 'input') {
@@ -561,23 +541,13 @@ const Edit = () => {
             ? inputBoxes[resizingElement.page][resizingElement.index]
             : signatureBoxes[resizingElement.page][resizingElement.index]
 
-        // Calculate new width and height based on mouse movement
-        let newWidth = Math.max(
-          0,
-          Math.min(
-            resizingElement.originalWidth +
-              ((currentX - resizingElement.startX) / containerWidth) * 100,
-            100,
-          ),
-        )
-        let newHeight = Math.max(
-          0,
-          Math.min(
-            resizingElement.originalHeight +
-              ((currentY - resizingElement.startY) / containerHeight) * 100,
-            100,
-          ),
-        )
+        let newWidth = resizingElement.originalWidth
+        let newHeight = resizingElement.originalHeight
+
+        if (resizingElement.direction === 'bottom-right') {
+          newWidth = Math.max(MIN_SIZE, currentX - resizingElement.originalLeft)
+          newHeight = Math.max(MIN_SIZE, currentY - resizingElement.originalTop)
+        }
 
         const updatedBoxes =
           resizingElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
@@ -587,8 +557,8 @@ const Edit = () => {
             width: newWidth,
             height: newHeight,
           },
-          100,
-          100,
+          containerWidth,
+          containerHeight,
         )
 
         if (resizingElement.type === 'input') {
@@ -733,9 +703,10 @@ const Edit = () => {
   const renderBoxes = (boxType) => {
     const boxes =
       boxType === 'input' ? inputBoxes[currentPage] || [] : signatureBoxes[currentPage] || []
-    const initialSize = boxType === 'input' ? 150 : 160
+    const initialSize = boxType === 'input' ? INITIAL_INPUT_SIZE : INITIAL_SIGNATURE_SIZE
     // console.log("INPUT BOXESSS => ", inputBoxes)
-    return boxes.map((box, index) => {
+    return boxes.map( ( box, index ) =>
+    {
       const isDraggingThisBox =
         dragging && draggedElement?.index === index && draggedElement?.type === boxType
       const isResizingThisBox =
@@ -747,10 +718,10 @@ const Edit = () => {
 
       const boxStyle = {
         position: 'absolute',
-        top: `${box.top}%`,
-        left: `${box.left}%`,
-        width: `${box.width || initialSize.width}%`,
-        height: `${box.height || initialSize.height}%`,
+        top: `${box.top}px`,
+        left: `${box.left}px`,
+        width: `${box.width || initialSize.width}px`,
+        height: `${box.height || initialSize.height}px`,
         cursor: isDraggingThisBox ? 'grabbing' : 'grab',
         zIndex: isDraggingThisBox || isResizingThisBox ? 1000 : isFocused ? 100 : 10,
         border: '1px solid black',

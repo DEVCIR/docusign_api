@@ -67,7 +67,7 @@ const Submit = () => {
       // Set the fetched document and submission data to display in the modal
       const documentData = response.data[0].document
       const submissionDetails = response.data[0].data
-      const pdfpath = response.data[0].pdfpath
+      const pdfpath = submission.pdfpath
 
       setCurrentSubmission({
         ...submission,
@@ -167,7 +167,7 @@ const Submit = () => {
                   <CTableDataCell>
                     <button
                       onClick={() =>
-                        window.open(`${apiUrl}/public/storage/${submission.pdfpath}`, '_blank')
+                        window.open(`${apiUrl}/storage/${submission.pdfpath}`, '_blank')
                       }
                       className='btn btn-outline-dark'
                       target='_blank'
@@ -219,7 +219,7 @@ const Submit = () => {
               <CButton
                 color='primary'
                 onClick={() =>
-                  window.open(`${apiUrl}/public/storage/${currentSubmission.pdfpath}`, '_blank')
+                  window.open(`${apiUrl}/storage/${currentSubmission.pdfpath}`, '_blank')
                 }
               >
                 Download PDF

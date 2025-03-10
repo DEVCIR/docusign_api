@@ -44,6 +44,7 @@ const Submit = () => {
       const response = await axios.get(
         type ? `${apiUrl}/api/submissions?type=agreement` : `${apiUrl}/api/submissions`,
       )
+      // console.log(response.data.submissions)
       setSubmissions(response.data.submissions)
       setLoading(false)
     } catch (error) {
@@ -56,18 +57,19 @@ const Submit = () => {
     try {
       // ;(url = `${apiUrl}/api/submissions${user ? `/${userID}` : ''}?type=${type ? type : 'template'}`),
       setViewLoading((prevState) => ({ ...prevState, [submission.id]: true }))
-      const userId = submission.user?.id || 7 // Default to 7 if no user ID
+      const userId = submission.user?.id
+      // const userId = submission.user?.id
       const response = await axios.get(
         type
           ? `${apiUrl}/api/submissions2/${submission.document_id}/${userId}?type=agreement`
           : `${apiUrl}/api/submissions2/${submission.document_id}/${userId}`,
       )
-      console.log(response)
 
       const documentData = response.data[0].document
       const submissionDetails = response.data[0].data
       // const pdfpath = documentData.path // original pdf
-      const pdfpath = response.data[0].pdfpath // pdf with fields
+      const pdfpath = submission.pdfpath // pdf with fields
+      console.log(submission)
 
       setCurrentSubmission({
         ...submission,
@@ -207,7 +209,9 @@ const Submit = () => {
                   <CTableDataCell>{submission.document.name}</CTableDataCell>
                   <CTableDataCell>
                     <button
-                      onClick={() => handleDownload(submission)}
+                      onClick={() =>
+                        window.open(`${apiUrl}/storage/${submission.pdfpath}`, '_blank')
+                      }
                       className="btn btn-outline-dark"
                     >
                       Download
@@ -257,7 +261,7 @@ const Submit = () => {
               <CButton
                 color="primary"
                 onClick={() =>
-                  window.open(`${apiUrl}/public/storage/${currentSubmission.pdfpath}`, '_blank')
+                  window.open(`${apiUrl}/storage/${currentSubmission.pdfpath}`, '_blank')
                 }
               >
                 Download PDF
