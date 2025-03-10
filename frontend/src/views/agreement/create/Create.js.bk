@@ -1,18 +1,19 @@
 /* eslint-disable react/display-name */
 /* eslint-disable react/prop-types */
 import
-{
-  CButton,
-  CContainer,
-  CFormInput,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
-  CRow,
-  CSpinner,
-} from '@coreui/react'
+  {
+    CButton,
+    CContainer,
+    CFormInput,
+    CModal,
+    CModalBody,
+    CModalFooter,
+    CModalHeader,
+    CModalTitle,
+    CRow,
+    CSpinner,
+    CTooltip,
+  } from '@coreui/react'
 import axios from 'axios'
 import mammoth from 'mammoth'
 import * as pdfjsLib from 'pdfjs-dist'
@@ -22,33 +23,33 @@ import { apiUrl } from 'src/components/Config/Config'
 import SendModal from 'src/views/document/SendModal'
 import { toast, Toaster } from 'sonner'
 import
-{
-  FaUser,
-  FaEnvelope,
-  FaBuilding,
-  FaTag,
-  FaTextHeight,
-  FaCalendar,
-  FaCheck,
-  FaPen,
-} from 'react-icons/fa'
+  {
+    FaUser,
+    FaEnvelope,
+    FaBuilding,
+    FaTag,
+    FaTextHeight,
+    FaCalendar,
+    FaCheck,
+    FaPen,
+  } from 'react-icons/fa'
 import { renderAsync } from 'docx-preview'
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer'
 import { MdOutlineWidgets } from 'react-icons/md'
+import { Tooltip } from '@coreui/coreui'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
 // Memoized Document Component
-export const Document = memo( ( { containerRef, fileType, docs, pdfPages, renderPDFPage, onMouseMove } ) =>
+const Document = memo( ( { containerRef, fileType, docs, pdfPages, renderPDFPage } ) =>
 {
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
       {fileType === 'pdf' &&
         pdfPages.map( ( page, index ) => (
           <div key={index} style={{ marginBottom: '20px' }}>
-            <div style={{ textAlign: 'center', margin: '10px 0', position: "absolute", left: "0", background: "red", padding: "10px", }}>Page {index + 1}</div>
+            <div style={{ textAlign: 'center', margin: '10px 0' }}>Page {index + 1}</div>
             <canvas
-              data-page-index={index}
               ref={( node ) =>
               {
                 if ( node )
@@ -143,16 +144,16 @@ export const Document = memo( ( { containerRef, fileType, docs, pdfPages, render
 //   )
 // } )
 
-const INITIAL_INPUT_SIZE = { width: 120, height: 50 }
-const INITIAL_SIGNATURE_SIZE = { width: 150, height: 85 }
+const INITIAL_INPUT_SIZE = { width: 25, height: 25 }
+const INITIAL_SIGNATURE_SIZE = { width: 25, height: 25 }
 
 const clampBoxPosition = ( box, containerWidth, containerHeight ) => ( {
   ...box,
   left: Math.max( 0, Math.min( box.left, containerWidth - ( box.width || INITIAL_INPUT_SIZE.width ) ) ),
   top: Math.max( 0, Math.min( box.top, containerHeight - ( box.height || INITIAL_INPUT_SIZE.height ) ) ),
-  // width: Math.min( box.width || INITIAL_INPUT_SIZE.width, containerWidth - box.left ),
-  // height: Math.min( box.height || INITIAL_INPUT_SIZE.height, containerHeight - box.top ),
-} );
+  width: Math.min( box.width || INITIAL_INPUT_SIZE.width, containerWidth - box.left ),
+  height: Math.min( box.height || INITIAL_INPUT_SIZE.height, containerHeight - box.top ),
+} )
 
 /**
  * This is the main component for creating a document. It handles the state of the document creation process.
@@ -175,7 +176,7 @@ const Create = () =>
   const [ uploadedFile, setUploadedFile ] = useState( false )
   const [ documentName, setDocumentName ] = useState( '' )
   const [ fileName, setFileName ] = useState( '' )
-  const [ currentPage, setCurrentPage ] = useState( 0 )
+  const [ currentPage, setCurrentPage ] = useState( 1 )
   const [ pdfPages, setPdfPages ] = useState( [] )
   const [ documentPageCount, setDocumentPageCount ] = useState( 0 )
   const [ focusedBox, setFocusedBox ] = useState( null )
@@ -184,10 +185,6 @@ const Create = () =>
   const [ isButtonLoading, setIsButtonLoading ] = useState( false )
   const [ startPosition, setStartPosition ] = useState( null )
   const [ thumbnailForceUpdate, setThumbnailForceUpdate ] = useState( 0 )
-  const [ myPage, setMyPage ] = useState( 0 )
-  const [ pageNumber, setPageNumber ] = useState( {} )
-  const [ mouseX, setMouseX ] = useState( 0 )
-  const [ mouseY, setMouseY ] = useState( 0 )
 
   const containerRef = useRef( null )
   const mainCanvasRef = useRef( null )
@@ -196,47 +193,6 @@ const Create = () =>
   const currentPageRef = useRef( null )
 
   const [ docs, setDocs ] = useState( [] )
-  const observerRef = useRef( null );
-
-
-  // useEffect( () =>
-  // {
-  //   console.log( 'muneeb ate rice 10 plates', pageNumber )
-
-  // }, [ pageNumber ] )
-  // useEffect( () =>
-  // {
-  //   if ( !uploadedFile || !pdfPages.length || !containerRef.current ) return;
-
-  //   const observer = new IntersectionObserver( ( entries ) =>
-  //   {
-  //     entries.forEach( ( entry ) =>
-  //     {
-  //       if ( entry.isIntersecting )
-  //       {
-  //         const pageIndex = parseInt( entry.target.dataset.pageIndex, 10 );
-  //         setCurrentPage( pageIndex + 1 );
-
-  //       }
-  //     } );
-  //   }, {
-  //     root: containerRef.current,
-  //     threshold: 0.5,
-  //   } );
-
-  //   const canvases = containerRef.current.querySelectorAll( 'canvas' );
-  //   if ( canvases.length === 0 ) return; // Ensure canvases exist
-
-  //   canvases.forEach( ( canvas, index ) =>
-  //   {
-  //     console.log( 'this is canvas', canvas, index );
-  //     canvas.dataset.pageIndex = index;
-  //     observer.observe( canvas );
-  //   } );
-
-  //   return () => observer.disconnect();
-  // }, [ uploadedFile, pdfPages ] );
-
 
   /**
    * This function is used to render a PDF page.
@@ -290,76 +246,6 @@ const Create = () =>
     renderPDFPage( page, mainCanvasRef.current, scaledViewport.width, scaledViewport.height )
     setCurrentPage( pageNumber )
   }, [ pageToRender, renderPDFPage, currentPage ] )
-
-  // Store the last known mouse position
-  let lastMouseX = 0;
-  let lastMouseY = 0;
-
-  /**
-   * Handles mouse movement and updates the last known mouse position.
-   * @param {MouseEvent} e - The mouse event.
-   */
-  const handleMouseMoveDocument = ( e ) =>
-  {
-    const container = containerRef.current;
-    if ( !container ) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const containerWidth = containerRect.width;
-    const containerHeight = containerRect.height;
-
-    lastMouseX = e.clientX - containerRect.left;
-    lastMouseY = e.clientY - containerRect.top;
-
-    updatePageNumber( container, lastMouseX, lastMouseY );
-    setMouseX( lastMouseX )
-    setMouseY( lastMouseY )
-  };
-
-  /**
-   * Handles scrolling while keeping the last known mouse position.
-   * @param {UIEvent} e - The scroll event.
-   */
-  const handleScrollDocument = ( e ) =>
-  {
-    const container = containerRef.current;
-    if ( !container ) return;
-
-    // Use the last known mouseX and mouseY during scrolling
-    updatePageNumber( container, lastMouseX, lastMouseY );
-    console.log( `Mouse is on page ${completeDetails}` );
-  };
-
-  /**
-   * Updates the page number based on mouse position.
-   * @param {HTMLElement} container - The container element.
-   * @param {number} mouseX - The last known mouse X position.
-   * @param {number} mouseY - The last known mouse Y position.
-   */
-  const updatePageNumber = ( container, mouseX, mouseY ) =>
-  {
-    const containerRect = container.getBoundingClientRect();
-    const containerWidth = containerRect.width;
-    const containerHeight = containerRect.height;
-
-    const pageX = Math.floor( ( mouseX / containerWidth ) * pdfPages.length ) + 1;
-    const pageY = Math.floor( ( mouseY / containerHeight ) * pdfPages.length ) + 1;
-
-    const completeDetails = {
-      containerRect,
-      containerWidth,
-      containerHeight,
-      mouseX,
-      mouseY,
-      pageX,
-      pageY,
-    };
-
-    setPageNumber( completeDetails );
-    console.log( `Mouse is on page ${completeDetails}` );
-  };
-
-
 
   /**
    * Render a single page of the PDF as a thumbnail.
@@ -417,7 +303,6 @@ const Create = () =>
                   renderPDFPage( page, node, scaledViewport.width, scaledViewport.height )
                 }
               }}
-
               style={{ width: '100px', height: 'auto' }}
             />
             <div style={{ textAlign: 'center' }}>Page {index + 1}</div>
@@ -531,7 +416,6 @@ const Create = () =>
       setFileType( 'pdf' )
     } else if ( fileType === 'docx' )
     {
-      setFileType( "pdf" );
       setUploadedFile( true )
       try
       {
@@ -565,7 +449,6 @@ const Create = () =>
       loadPDF( file )
     } else if ( fileType === 'docx' )
     {
-      setFileType( "pdf" );
       loadPDFFromURL( file2 )
     }
   }
@@ -926,34 +809,21 @@ const Create = () =>
     setStartPosition( null )
   }, [] )
 
-
-  function isInViewport( element )
-  {
-    const rect = element.getBoundingClientRect();
-    return (
-      rect.top >= 0 &&
-      rect.left >= 0
-      // &&
-      // rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-      // rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-  }
-
   const addInputBox = ( fieldType ) =>
   {
     const newPage = currentPage
     const containerWidth = containerRef.current?.offsetWidth || 800
     const containerHeight = containerRef.current?.offsetHeight || 600
 
-    setInputBoxes((prevBoxes) => ({
+    setInputBoxes( ( prevBoxes ) => ( {
       ...prevBoxes,
-      [newPage]: [
-        ...(prevBoxes[newPage] || []),
+      [ newPage ]: [
+        ...( prevBoxes[ newPage ] || [] ),
         clampBoxPosition(
           {
             fieldType,
-            top: mouseY,
-            left: mouseX,
+            top: 100,
+            left: 100,
             page: newPage,
             required: false,
             ...INITIAL_INPUT_SIZE,
@@ -962,7 +832,7 @@ const Create = () =>
           containerHeight,
         ),
       ],
-    }))
+    } ) )
   }
 
   const addSignatureBox = ( fieldType ) =>
@@ -971,15 +841,15 @@ const Create = () =>
     const containerWidth = containerRef.current?.offsetWidth || 800
     const containerHeight = containerRef.current?.offsetHeight || 600
 
-    setSignatureBoxes((prevBoxes) => ({
+    setSignatureBoxes( ( prevBoxes ) => ( {
       ...prevBoxes,
-      [newPage]: [
-        ...(prevBoxes[newPage] || []),
+      [ newPage ]: [
+        ...( prevBoxes[ newPage ] || [] ),
         clampBoxPosition(
           {
             fieldType,
-            top: mouseY,
-            left: mouseX,
+            top: 100,
+            left: 100,
             page: newPage,
             required: false,
             ...INITIAL_SIGNATURE_SIZE,
@@ -988,7 +858,7 @@ const Create = () =>
           containerHeight,
         ),
       ],
-    }))
+    } ) )
   }
 
   const getPlaceholder = ( fieldType ) =>
@@ -1210,12 +1080,15 @@ const Create = () =>
         zIndex: isDraggingThisBox ? 1000 : isFocused ? 100 : 10,
         // border: boxType === 'signature' && '1px solid black',
         border: '1px solid black',
-        backgroundColor: boxType === 'signature' ? '#10a827' : '#e6b905',
+        backgroundColor: boxType === 'signature'? '#fff':'#e6b905',
         // backgroundColor: '#e6b905',
         // display: 'flex',
         // alignItems: 'start',
         // justifyContent: 'start',
         // padding: '2px',
+        transition: 'transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)', // Added transition for animation
+        opacity: isDraggingThisBox ? 0.9 : 1,
+        transform: isFocused ? 'scale(1.05)' : 'scale(1)', // Scale effect on focus and unfocus
         userSelect: 'none',
         transition: isDraggingThisBox ? 'none' : 'all 0.2s ease',
         opacity: isDraggingThisBox ? 0.9 : 1,
@@ -1229,58 +1102,39 @@ const Create = () =>
       return (
         <div
           key={index}
-          className={boxType === 'input' && 'rounded shadow-sm'}
+          className={boxType === 'input' ? 'rounded shadow-sm' : ''}
           style={boxStyle}
           onMouseDown={handleMouseDown( index, boxType, currentPage )}
           onMouseUp={handleMouseUp}
           tabIndex={0}
         >
-          <span style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-          }}>{box.fieldType}</span>
           {isFocused && (
-            <div style={{ display: `${!isFocused ? "none" : 'flex'}`, }}>
-
-              <span style={{ display: "flex", fontSize: "12px" }}>
-                <input
-                  type="checkbox"
-                  className="form-check-input position-relative top-0 start-0"
-                  checked={box.required || false}
-                  onChange={( e ) =>
-                  {
-                    e.stopPropagation()
-                    toggleRequired( index, boxType, currentPage )
+            <>
+              <div style={{ display: isFocused ? 'flex' : 'none', overflow: 'hidden', height: '100%' }}>
+              <CTooltip content="Toggle Required" placement="top">
+                <span
+                  style={{
+                    marginLeft: 'auto',
+                    marginRight: '0px',
+                    alignItems: 'end',
+                    lineHeight: '0.5',
+                    cursor: 'pointer',
+                    zIndex: 1001,
+                    pointerEvents: 'auto',
                   }}
-                  onMouseDown={( e ) => e.stopPropagation()}
-                  onClick={( e ) => e.stopPropagation()}
-                />
-                Required
-              </span>
-              <span
-                style={{
-                  width: '20000%',
-                  alignItems: 'end',
-                  lineHeight: '0.5',
-                  marginBottom: '10px',
-                  cursor: 'pointer',
-                  zIndex: 1001,
-                  pointerEvents: 'auto',
-                }}
-                className="fs-3 text-secondary text-end cursor-pointer close-button"
-                onClick={( e ) =>
-                {
+                  className="fs-3 text-secondary text-end cursor-pointer close-button"
+                  onClick={( e ) =>
+                  {
+                    e.stopPropagation();
+                    removeBox( index, boxType, currentPage );
+                  }}
+                >
+                  ×
+                </span>
+              </CTooltip>
 
-                  e.stopPropagation()
-                  removeBox( index, boxType, currentPage )
-                }}
-              >
-                ×
-              </span>
-
-              {/* <div
+              <CTooltip content="Resize" placement="se">
+                              <div
                 className="resize-handle"
                 data-direction="nw"
                 style={{
@@ -1321,7 +1175,7 @@ const Create = () =>
                   cursor: 'nesw-resize',
                   pointerEvents: 'auto',
                 }}
-              /> */}
+              />
               <div
                 className="resize-handle"
                 data-direction="se"
@@ -1336,12 +1190,25 @@ const Create = () =>
                   pointerEvents: 'auto',
                 }}
               />
-              <div
-                className="position-relative mt-2 text-secondary w-100  justify-content-start align-items-start"
-                style={{ pointerEvents: 'auto' }}
-              >
+              </CTooltip>
               </div>
-            </div>
+              <CTooltip className='inline-flex' content="Required" placement='ne'>
+                <span>
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
+                    checked={box.required || false}
+                    onChange={( e ) =>
+                    {
+                      e.stopPropagation();
+                      toggleRequired( index, boxType, currentPage );
+                    }}
+                    onMouseDown={( e ) => e.stopPropagation()}
+                    onClick={( e ) => e.stopPropagation()}
+                  />
+                  Required</span>
+              </CTooltip>
+            </>
           )}
         </div>
       )
@@ -1492,24 +1359,24 @@ const Create = () =>
     switch ( draggedElement.resizeDirection )
     {
       case 'nw':
-        newBox.left = Math.min( currentX, originalRight - 20 )
-        newBox.top = Math.min( currentY, originalBottom - 20 )
+        newBox.left = Math.min( currentX, originalRight - INITIAL_INPUT_SIZE.width )
+        newBox.top = Math.min( currentY, originalBottom - INITIAL_INPUT_SIZE.height )
         newBox.width = originalRight - newBox.left
         newBox.height = originalBottom - newBox.top
         break
       case 'ne':
-        newBox.width = Math.max( 20, currentX - box.left )
-        newBox.top = Math.min( currentY, originalBottom - 20 )
+        newBox.width = Math.max( INITIAL_INPUT_SIZE.width, currentX - box.left )
+        newBox.top = Math.min( currentY, originalBottom - INITIAL_INPUT_SIZE.height )
         newBox.height = originalBottom - newBox.top
         break
       case 'sw':
-        newBox.left = Math.min( currentX, originalRight - 20 )
-        newBox.height = Math.max( 20, currentY - box.top )
+        newBox.left = Math.min( currentX, originalRight - INITIAL_INPUT_SIZE.width )
+        newBox.height = Math.max( INITIAL_INPUT_SIZE.height, currentY - box.top )
         newBox.width = originalRight - newBox.left
         break
       case 'se':
-        newBox.width = Math.max( 20, currentX - box.left )
-        newBox.height = Math.max( 20, currentY - box.top )
+        newBox.width = Math.max( INITIAL_INPUT_SIZE.width, currentX - box.left )
+        newBox.height = Math.max( INITIAL_INPUT_SIZE.height, currentY - box.top )
         break
     }
 
@@ -1577,12 +1444,12 @@ const Create = () =>
           </div> */}
           <div
             className='d-flex position-relative w-100'
-            // style={{
-            //   display: 'flex',
-            //   position: 'relative',
-            //   width: '100%',
-            //   height: 'auto',
-            // }}
+          // style={{
+          //   display: 'flex',
+          //   position: 'relative',
+          //   width: '100%',
+          //   height: 'auto',
+          // }}
           >
             <div
               ref={containerRef}
@@ -1597,12 +1464,10 @@ const Create = () =>
                 maxWidth: "945px",
                 width: '80%',
                 height: 'max-content',
-                minHeight: '1222.46px',
                 boxShadow: '0px 0px 5px rgb(65 26 70)',
                 // overflow: 'hidden !important',
               }}
-              onMouseMove={( e ) => { handleMouseMoveDocument( e ) }}
-              onScroll={( e ) => { handleScrollDocument( e ) }}
+              onMouseMove={handleMouseMove}
               onClick={( e ) =>
               {
                 if ( !e.target.closest( '.bg-white' ) && !e.target.closest( 'div[tabIndex="0"]' ) )
@@ -1619,25 +1484,27 @@ const Create = () =>
                 pdfPages={pdfPages}
                 renderPDFPage={renderPDFPage}
               />
+
               {renderBoxes( 'input' )}
               {renderBoxes( 'signature' )}
             </div>
             <div
               style={{
+                position: 'sticky',
+                top: '25%',
+                // marginTop: '100px',
                 width: '20%',
-                height: '600px',
-                overflowY: 'auto',
+                height: 'fit-content',
+                overflow: 'hidden !important',
                 boxShadow: '0px 0px 5px rgb(65 26 70)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                position: "sticky",
-                top: "25%",
               }}
             >
               <CRow
                 style={{
-                  marginTop: '20px',
+                  // marginTop: '40%',
                   display: 'flex',
                   gap: '10px',
                   flexWrap: 'wrap',

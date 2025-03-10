@@ -9,7 +9,7 @@ const CreateDocument = React.lazy(() => import('./views/document/create/Create')
 const ListDocument = React.lazy(() => import('./views/document/list/List'))
 const ViewDocument = React.lazy(() => import('./views/document/view/View')) // Import your view document component
 const SubmitDocument = React.lazy(() => import('./views/document/submit/Submit')) // Import your view document component
-
+const EditDocument = React.lazy(() => import('./views/document/Edit/Edit'))
 // Agreement
 const CreateAgreement = React.lazy(() => import('./views/agreement/create/Create'))
 const ListAgreement = React.lazy(() => import('./views/agreement/list/List'))
@@ -21,7 +21,6 @@ const CreateUser = React.lazy(() => import('./views/user/add/Add'))
 const ListUser = React.lazy(() => import('./views/user/list/List'))
 
 // Base, Buttons, Forms, Charts, Icons, Notifications, etc. (Same as before)
-
 const routes = [
   { path: '/', exact: true, name: 'Home' },
   { path: '/dashboard', name: 'Dashboard', element: Dashboard },
@@ -32,6 +31,7 @@ const routes = [
   // Document
   { path: '/document/add', name: 'Add Document', element: CreateDocument },
   { path: '/document/list', name: 'List Document', element: ListDocument },
+  { path: '/document/edit/:documentid', name: 'Edit Document', element: EditDocument },
   { path: '/document/view/:documentid?', name: 'View Document', element: ViewDocument }, // Updated route to accept dynamic ID
   { path: '/document/submit/', name: 'View Document', element: SubmitDocument }, // Updated route to accept dynamic ID
 

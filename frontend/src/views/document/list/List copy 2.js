@@ -1,6 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import fs from 'fs'
-import { Document} from '../create/Create'
 import {
   CButton,
   CContainer,
@@ -44,29 +42,23 @@ const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 }
 
 const renderPDFPage = async (page, canvas, width, height) => {
   try {
-    // Check if canvas is already being used
-    if (canvas.dataset.rendering === 'true') return;
+    const viewport = page.getViewport({ scale: 1 })
+    const scale = Math.min(width / viewport.width, height / viewport.height)
+    const scaledViewport = page.getViewport({ scale })
 
-    canvas.dataset.rendering = 'true';
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(width / viewport.width, height / viewport.height);
-    const scaledViewport = page.getViewport({ scale });
-
-    canvas.height = scaledViewport.height;
-    canvas.width = scaledViewport.width;
+    canvas.height = scaledViewport.height
+    canvas.width = scaledViewport.width
 
     const renderContext = {
-      canvasContext: canvas.getContext('2d', { alpha: false }),
+      canvasContext: canvas.getContext('2d'),
       viewport: scaledViewport,
-    };
-
-    await page.render(renderContext).promise;
-    canvas.dataset.rendering = 'false';
+    }
+    await page.render(renderContext).promise
   } catch (error) {
-    console.error('Error rendering PDF page:', error);
-    canvas.dataset.rendering = 'false';
+    console.error('Error rendering PDF page:', error)
   }
-};
+}
+
 const clampBoxPosition = (box, containerWidth, containerHeight) => ({
   ...box,
   left: Math.max(0, Math.min(box.left, containerWidth - (box.width || INITIAL_INPUT_SIZE.width))),
@@ -104,10 +96,6 @@ const List = () => {
   const mainCanvasRef = useRef(null)
   const navigate = useNavigate()
   const [thumbnailForceUpdate, setThumbnailForceUpdate] = useState(0)
-  const [currentItemIndex, setCurrentItemIndex] = useState(null)
-  const floatingBoxRef = useRef(null)
-  const [isRendering, setIsRendering] = useState(false)
-  const [currentRenderPromise, setCurrentRenderPromise] = useState(null)
 
   useEffect(() => {
     fetchDocuments()
@@ -174,10 +162,7 @@ const List = () => {
     }
     try {
       const response = await axios.get(`${apiUrl}/api/documents/pending/${document.id}/`)
-      const doc = response.data.document[ 0 ]
-      // const doc = fs.readFileSync('../../../../../../Downloads/21583473018.pdf',{ encoding: "base64" }  )
-      // console.log(doc)
-
+      const doc = response.data.document[0]
       setCurrentDocument(doc)
       setFormData({
         title: doc.name || '',
@@ -349,7 +334,7 @@ const List = () => {
         })
       }
     } finally {
-      returntrue
+      return true
     }
   }
 
@@ -411,46 +396,27 @@ const List = () => {
     }
   }
 
-const renderPage = async (pageNumber, page) => {
-  if (!containerRef.current) return;
-
-  // Clear previous canvas elements
-  while (containerRef.current.firstChild) {
-    containerRef.current.removeChild(containerRef.current.firstChild);
+  const renderPage = async (pageNumber, page) => {
+    if (!mainCanvasRef.current || !containerRef.current) return
+    const containerWidth = pageToRender?.containerWidth || containerRef.current.offsetWidth
+    const viewport = page.getViewport({ scale: 1 })
+    const scale = containerWidth / viewport.width
+    const scaledViewport = page.getViewport({ scale })
+    const canvas = mainCanvasRef.current
+    const context = canvas.getContext('2d')
+    canvas.width = scaledViewport.width
+    canvas.height = scaledViewport.height
+    try {
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport,
+      }).promise
+      setCurrentPage(pageNumber)
+    } catch (error) {
+      console.error('Error rendering page:', error)
+      toast.error('Failed to render PDF page.', { duration: 3000, position: 'top-right' })
+    }
   }
-
-  // Create new canvas element
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-
-  try {
-    setIsRendering(true);
-    const containerWidth = containerRef.current.offsetWidth;
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = containerWidth / viewport.width;
-    const scaledViewport = page.getViewport({ scale });
-
-    // Set canvas dimensions
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
-
-    // Render the page to the new canvas
-    await page.render({
-      canvasContext: context,
-      viewport: scaledViewport,
-    }).promise;
-
-    // Append the new canvas to the container
-    containerRef.current.appendChild(canvas);
-    setCurrentPage(pageNumber);
-  } catch (error) {
-    console.error('Error rendering page:', error);
-    toast.error('Failed to render PDF page.', { duration: 3000, position: 'top-right' });
-  } finally {
-    setIsRendering(false);
-    setCurrentRenderPromise(null);
-  }
-};
 
   const handleMouseDown = (index, type, page) => (e) => {
     e.preventDefault()
@@ -458,7 +424,6 @@ const renderPage = async (pageNumber, page) => {
     if (e.target.type === 'checkbox' || e.target.classList.contains('close-button')) {
       return
     }
-
     const box = type === 'input' ? inputBoxes[page][index] : signatureBoxes[page][index]
     const isFocused =
       focusedBox &&
@@ -481,8 +446,8 @@ const renderPage = async (pageNumber, page) => {
         page,
         isResizing: true,
         resizeDirection,
-        startWidth: box.width || INITIAL_INPUT_SIZE.width,
-        startHeight: box.height || INITIAL_INPUT_SIZE.height,
+        startWidth: box.width || 150,
+        startHeight: box.height || 30,
         startX: clickX,
         startY: clickY,
       })
@@ -521,6 +486,9 @@ const renderPage = async (pageNumber, page) => {
     if (!dragging || !draggedElement) return
 
     const containerRect = containerRef.current.getBoundingClientRect()
+    const containerWidth = containerRect.width
+    const containerHeight = containerRect.height
+
     const box =
       draggedElement.type === 'input'
         ? inputBoxes[draggedElement.page][draggedElement.index]
@@ -531,42 +499,88 @@ const renderPage = async (pageNumber, page) => {
       const currentX = e.clientX - containerRect.left
       const currentY = e.clientY - containerRect.top
 
+      const updatedBoxes =
+        draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
       const newBox = { ...box }
 
-      // Resize logic based on the direction
+      // Store original right and bottom positions
+      const originalRight = box.left + box.width
+      const originalBottom = box.top + box.height
+
       switch (draggedElement.resizeDirection) {
-        case 'nw':
-          newBox.left = Math.min(currentX, box.left + box.width)
-          newBox.top = Math.min(currentY, box.top + box.height)
-          newBox.width = Math.max(50, box.left + box.width - newBox.left)
-          newBox.height = Math.max(30, box.top + box.height - newBox.top)
+        case 'nw': // Top-left
+          {
+            // Calculate new dimensions based on mouse position
+            const newLeft = Math.min(currentX, originalRight - 50)
+            const newTop = Math.min(currentY, originalBottom - 30)
+            const newWidth = originalRight - newLeft
+            const newHeight = originalBottom - newTop
+
+            // Apply new dimensions if they meet minimum requirements
+            if (newWidth >= 50) {
+              newBox.left = newLeft
+              newBox.width = newWidth
+            }
+            if (newHeight >= 30) {
+              newBox.top = newTop
+              newBox.height = newHeight
+            }
+          }
           break
-        case 'ne':
-          newBox.top = Math.min(currentY, box.top + box.height)
-          newBox.width = Math.max(50, currentX - box.left)
-          newBox.height = Math.max(30, box.top + box.height - newBox.top)
+
+        case 'ne': // Top-right
+          {
+            const newRight = Math.max(currentX, box.left + 50)
+            const newTop = Math.min(currentY, originalBottom - 30)
+            const newWidth = newRight - box.left
+            const newHeight = originalBottom - newTop
+
+            if (newWidth >= 50) {
+              newBox.width = newWidth
+            }
+            if (newHeight >= 30) {
+              newBox.top = newTop
+              newBox.height = newHeight
+            }
+          }
           break
-        case 'sw':
-          newBox.left = Math.min(currentX, box.left + box.width)
-          newBox.width = Math.max(50, box.left + box.width - newBox.left)
-          newBox.height = Math.max(30, currentY - box.top)
+
+        case 'sw': // Bottom-left
+          {
+            const newLeft = Math.min(currentX, originalRight - 50)
+            const newBottom = Math.max(currentY, box.top + 30)
+            const newWidth = originalRight - newLeft
+            const newHeight = newBottom - box.top
+
+            if (newWidth >= 50) {
+              newBox.left = newLeft
+              newBox.width = newWidth
+            }
+            if (newHeight >= 30) {
+              newBox.height = newHeight
+            }
+          }
           break
-        case 'se':
-          newBox.width = Math.max(50, currentX - box.left)
-          newBox.height = Math.max(30, currentY - box.top)
+
+        case 'se': // Bottom-right
+          {
+            const newWidth = Math.max(50, currentX - box.left)
+            const newHeight = Math.max(30, currentY - box.top)
+            newBox.width = newWidth
+            newBox.height = newHeight
+          }
           break
+
         default:
           break
       }
 
       // Final position constraints with container bounds
-      newBox.left = Math.max(0, Math.min(newBox.left, containerRect.width - newBox.width))
-      newBox.top = Math.max(0, Math.min(newBox.top, containerRect.height - newBox.height))
-      newBox.width = Math.min(newBox.width, containerRect.width - newBox.left)
-      newBox.height = Math.min(newBox.height, containerRect.height - newBox.top)
+      newBox.left = Math.max(0, Math.min(newBox.left, containerWidth - newBox.width))
+      newBox.top = Math.max(0, Math.min(newBox.top, containerHeight - newBox.height))
+      newBox.width = Math.min(newBox.width, containerWidth - newBox.left)
+      newBox.height = Math.min(newBox.height, containerHeight - newBox.top)
 
-      const updatedBoxes =
-        draggedElement.type === 'input' ? { ...inputBoxes } : { ...signatureBoxes }
       updatedBoxes[draggedElement.page][draggedElement.index] = newBox
 
       if (draggedElement.type === 'input') {
@@ -577,7 +591,6 @@ const renderPage = async (pageNumber, page) => {
       return
     }
 
-    // Handle dragging
     let newLeft = e.clientX - containerRect.left - draggedElement.offsetX
     let newTop = e.clientY - containerRect.top - draggedElement.offsetY
 
@@ -599,6 +612,10 @@ const renderPage = async (pageNumber, page) => {
 
   const handleMouseUp = (index, type, page) => (e) => {
     e.preventDefault()
+    // Check if the click is on the checkbox or close button
+    if (e.target.type === 'checkbox' || e.target.classList.contains('close-button')) {
+      return
+    }
     if (dragging && draggedElement) {
       // Clear resize state first
       if (draggedElement.isResizing) {
@@ -777,8 +794,7 @@ const renderPage = async (pageNumber, page) => {
         focusedBox?.index === index &&
         focusedBox?.type === boxType &&
         focusedBox?.page === currentPage
-      // const showIcon = (isDraggingThisBox && !draggedElement?.isResizing) || !isFocused
-      const showIcon = false
+      const showIcon = (isDraggingThisBox && !draggedElement?.isResizing) || !isFocused
       const initialSize = boxType === 'input' ? INITIAL_INPUT_SIZE : INITIAL_SIGNATURE_SIZE
 
       const boxStyle = {
@@ -837,6 +853,48 @@ const renderPage = async (pageNumber, page) => {
             <>
               <div
                 className="resize-handle"
+                data-direction="nw"
+                style={{
+                  position: 'absolute',
+                  left: -4,
+                  top: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nwse-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
+                data-direction="ne"
+                style={{
+                  position: 'absolute',
+                  right: -4,
+                  top: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nesw-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
+                data-direction="sw"
+                style={{
+                  position: 'absolute',
+                  left: -4,
+                  bottom: -4,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#007bff',
+                  cursor: 'nesw-resize',
+                  pointerEvents: 'auto',
+                }}
+              />
+              <div
+                className="resize-handle"
                 data-direction="se"
                 style={{
                   position: 'absolute',
@@ -861,15 +919,26 @@ const renderPage = async (pageNumber, page) => {
               className="position-relative mt-2 text-secondary w-100"
               style={{ pointerEvents: 'none' }}
             >
-              {/* <input
+              {box.fieldType === 'checkbox' ? (
+                <label className="form-check-label" style={{ pointerEvents: 'auto' }}>
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
+                    disabled
+                    style={{ pointerEvents: 'auto' }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  />
+                </label>
+              ) : (
+                <input
                   type="text"
                   className="form-control ps-5 pe-3 py-2 border shadow-sm rounded"
                   placeholder={getPlaceholder(box.fieldType)}
                   disabled
                   style={{ pointerEvents: 'auto' }}
                   onMouseDown={(e) => e.stopPropagation()}
-                /> */}
-              <p>{getPlaceholder(box.fieldType)}</p>
+                />
+              )}
               <div
                 className="d-flex flex-row gap-3 mt-2 justify-content-center w-100"
                 style={{ pointerEvents: 'auto' }}
@@ -922,27 +991,62 @@ const renderPage = async (pageNumber, page) => {
     })
   }
 
-const renderThumbnail = useCallback((page, index) => {
-  const containerWidth = 100;
-  const viewport = page.getViewport({ scale: 1 });
-  const scale = containerWidth / viewport.width;
-  const scaledViewport = page.getViewport({ scale });
-
-  return (
-    <div key={`thumbnail-${index}-${Date.now()}`}>
+  const renderPages = () => {
+    return pdfPages.map((page, index) => (
       <canvas
+        key={index}
         ref={(node) => {
-          if (node && !node.dataset.rendered) {
-            renderPDFPage(page, node, scaledViewport.width, scaledViewport.height);
-            node.dataset.rendered = 'true';
+          if (node) {
+            renderPDFPage(page, node, containerRef.current.offsetWidth, containerRef.current.offsetHeight);
           }
         }}
+        style={{ display: 'block', width: '100%', height: 'auto', zIndex: 1 }}
       />
-      <div>Page {index + 1}</div>
-    </div>
-  );
-}, [currentPage]);
+    ));
+  }
 
+  const renderThumbnail = useCallback(
+    (page, index) => {
+      const containerWidth = 100
+      const viewport = page.getViewport({ scale: 1 })
+      const scale = containerWidth / viewport.width
+      const scaledViewport = page.getViewport({ scale })
+
+      return (
+        <div
+          key={index}
+          onClick={() => {
+            if (currentPage !== index + 1) {
+              setPageToRender({
+                page,
+                pageNumber: index + 1,
+                containerWidth: containerRef.current?.offsetWidth,
+              })
+              setCurrentPage(index + 1)
+              setThumbnailForceUpdate((prev) => prev + 1)
+            }
+          }}
+          style={{
+            width: '100px',
+            height: 'auto',
+            cursor: 'pointer',
+            margin: '5px',
+          }}
+        >
+          <canvas
+            ref={(node) => {
+              if (node) {
+                renderPDFPage(page, node, scaledViewport.width, scaledViewport.height)
+              }
+            }}
+            style={{ width: '100px', height: 'auto' }}
+          />
+          <div style={{ textAlign: 'center' }}>Page {index + 1}</div>
+        </div>
+      )
+    },
+    [currentPage],
+  )
 
   const thumbnails = useMemo(() => {
     if (currentDocument?.path?.toLowerCase().endsWith('.pdf') && pdfPages.length) {
@@ -950,18 +1054,6 @@ const renderThumbnail = useCallback((page, index) => {
     }
     return null
   }, [currentDocument?.path, pdfPages.length, renderThumbnail])
-
-  const showFloatingBox = (index, event) => {
-    setCurrentItemIndex(index)
-    const box = floatingBoxRef.current
-    if (box) {
-      const rect = event.target.getBoundingClientRect()
-      const containerRect = event.target.closest('.item-container').getBoundingClientRect()
-      box.style.top = `${rect.top - containerRect.top}px`
-      box.style.left = `${rect.left - containerRect.left}px`
-      box.style.display = 'block'
-    }
-  }
 
   const renderFieldsOnDocument = async (docment, inputBoxes, signatureBoxes) => {
     if (typeof window === 'undefined' || typeof docment === 'undefined') {
@@ -1140,7 +1232,7 @@ const renderThumbnail = useCallback((page, index) => {
                     <CButton
                       color="warning"
                       size="sm"
-                      onClick={() => navigate(`/document/edit/${document.id}`)}
+                      onClick={() => handleEdit(document)}
                       className="me-2"
                     >
                       Edit
@@ -1161,41 +1253,18 @@ const renderThumbnail = useCallback((page, index) => {
               ))}
             </CTableBody>
           </CTable>
-          {currentDocument?.path?.toLowerCase().endsWith('.pdf') &&
-            pdfPages.map((page, index) => (
-              <Document
-                key={index}
-                containerRef={containerRef}
-                fileType="pdf"
-                docs={[currentDocument]}
-                mainCanvasRef={mainCanvasRef}
-                pdfPages={[page]}
-                renderPDFPage={renderPDFPage}
-              />
-            ))}
-          <style>
-            {`
-                @media (min-width: 1200px) {
-                  .modal-xl {
-                    --cui-modal-width: 1446px;
-                  }
-                }
-            `}
-          </style>
           <CModal visible={editModalVisible} onClose={() => setEditModalVisible(false)} size="xl">
             <CModalHeader>
               <CModalTitle>Edit Document</CModalTitle>
             </CModalHeader>
-            <CModalBody style={{ width: '100%' }}>
+            <CModalBody>
               <div style={{ display: 'flex', marginTop: '20px' }}>
                 <div
                   ref={containerRef}
                   style={{
                     position: 'relative',
-                    minWidth: '945px',
-                    maxWidth: '945px',
-                    width: '80%',
-                    minHeight: '1222.46px',
+                    width: '70%',
+                    minHeight: '800px',
                     backgroundColor: '#f9f9f9',
                     marginRight: '20px',
                     boxShadow: '0px 0px 5px rgb(65 26 70)',
@@ -1208,40 +1277,17 @@ const renderThumbnail = useCallback((page, index) => {
                     }
                   }}
                 >
-                  {currentDocument?.path?.toLowerCase().endsWith('.pdf') &&
-                    pdfPages.map((page, index) => (
-                      <div key={index} style={{ marginBottom: '20px' }}>
-                        <div
-                          style={{
-                            textAlign: 'center',
-                            margin: '10px 0',
-                            position: 'absolute',
-                            left: '0',
-                            background: 'red',
-                            padding: '10px',
-                          }}
-                        >
-                          Page {index + 1}
-                        </div>
-                        <canvas
-                          data-page-index={index}
-                          ref={(node) => {
-                            if (node) {
-                              const viewport = page.getViewport({ scale: 1 })
-                              node.width = viewport.width
-                              node.height = viewport.height
-                              renderPDFPage(page, node, viewport.width, viewport.height)
-                            }
-                          }}
-                          style={{
-                            display: 'block',
-                            width: '100%',
-                            height: 'auto',
-                            border: '1px solid #ccc',
-                          }}
-                        />
-                      </div>
-                    ))}
+                  {currentDocument?.path?.toLowerCase().endsWith('.pdf') && (
+                    <canvas
+                      ref={mainCanvasRef}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        height: 'auto',
+                        zIndex: 1,
+                      }}
+                    />
+                  )}
                   {currentDocument?.path?.toLowerCase().endsWith('.docx') && (
                     <div
                       style={{
@@ -1254,7 +1300,8 @@ const renderThumbnail = useCallback((page, index) => {
                       }}
                       dangerouslySetInnerHTML={{ __html: docxContent }}
                     />
-                  )}
+                    )}
+                    {renderPages()}
                   {renderBoxes('input')}
                   {renderBoxes('signature')}
                 </div>
@@ -1351,6 +1398,9 @@ const renderThumbnail = useCallback((page, index) => {
                       <FaPen style={{ marginRight: '5px' }} /> Add Signature
                     </CButton>
                   </CRow>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '10px' }}>
+                    {thumbnails}
+                  </div>
                 </div>
               </div>
             </CModalBody>

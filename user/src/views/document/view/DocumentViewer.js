@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState, memo } from 'react'
+import React, { useEffect, useRef, useState, memo, useCallback, useMemo } from 'react'
 import { CButton, CForm, CFormInput, CFormLabel, CModal, CSpinner } from '@coreui/react'
-import axios, { AxiosError } from 'axios'
+import axios from 'axios'
 import './document.css'
 import html2canvas from 'html2canvas'
 import { apiUrl } from '../../../components/Config/Config'
@@ -10,11 +10,8 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import mammoth from 'mammoth'
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer'
 import { toast, Toaster } from 'sonner'
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
-
-// Memoized Document Component
-// Memoize DocViewer to prevent unnecessary rerenders
-
 const fonts = [
   'Dancing Script',
   'Great Vibes',
@@ -78,6 +75,386 @@ const fonts = [
   'Zeyada',
 ]
 
+const SignatureField = ({ box, formData, setFormData, fonts, savedSignatures }) => {
+  const [showSignatureModal, setShowSignatureModal] = useState(false)
+  const [signatureMethod, setSignatureMethod] = useState('draw')
+  const [signatureUpload, setSignatureUpload] = useState(null)
+  const [signatureText, setSignatureText] = useState('Your Name')
+  const [selectedFont, setSelectedFont] = useState(fonts[0])
+  const signatureCanvasRef = useRef(null)
+  const fontSignatureRef = useRef(null)
+  const [savedSignatures2, setSavedSignatures2] = useState([])
+  const [randomNumber, setRandomNumber] = useState('') // State to store the random number
+  const randomNumberRef = useRef(null) // Ref to hold the random number div
+
+  // Generate a 16-digit random number
+  const generateRandomNumber = () => {
+    const number = Math.floor(1000000000000000 + Math.random() * 9000000000000000).toString()
+    setRandomNumber(number) // Set the random number in state
+    return number
+  }
+
+  const startDrawing = (e) => {
+    const canvas = signatureCanvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    ctx.lineWidth = 2
+    ctx.strokeStyle = '#000000'
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY)
+  }
+
+  const drawSignature = (e) => {
+    if (e.buttons === 1) {
+      const canvas = signatureCanvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY)
+      ctx.stroke()
+    }
+  }
+
+  const clearSignature = () => {
+    if (signatureMethod === 'draw') {
+      const canvas = signatureCanvasRef.current
+      if (canvas) {
+        const ctx = canvas.getContext('2d')
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+    } else if (signatureMethod === 'font') {
+      setSignatureText('Your Name')
+      setSelectedFont(fonts[0])
+    } else if (signatureMethod === 'upload') {
+      setSignatureUpload(null)
+    }
+    setRandomNumber('') // Clear the random number when clearing the signature
+    if (randomNumberRef.current) {
+      randomNumberRef.current.remove() // Remove the random number div
+    }
+  }
+
+  const saveSignature = async () => {
+    let signatureData = ''
+    const randomNumber = generateRandomNumber() // Generate and set the random number
+
+    if (signatureMethod === 'draw') {
+      const canvas = signatureCanvasRef.current
+      if (canvas) {
+        signatureData = canvas.toDataURL()
+
+        // Create a div to display the random number below the canvas
+        const randomNumberDiv = document.createElement('div')
+        randomNumberDiv.textContent = `Random Number: ${randomNumber}`
+        randomNumberDiv.style.marginTop = '10px'
+        randomNumberDiv.style.fontSize = '16px'
+        randomNumberDiv.style.textAlign = 'center'
+        randomNumberRef.current = randomNumberDiv // Store the div in the ref
+
+        console.log(canvas)
+        console.log(canvas.parentNode)
+        canvas.parentNode.appendChild(randomNumberDiv) // Append the div after the canvas
+      }
+    } else if (signatureMethod === 'upload') {
+      signatureData = signatureUpload
+
+      // Create a div to display the random number below the uploaded image
+      const randomNumberDiv = document.createElement('div')
+      randomNumberDiv.textContent = `Random Number: ${randomNumber}`
+      randomNumberDiv.style.marginTop = '10px'
+      randomNumberDiv.style.fontSize = '16px'
+      randomNumberDiv.style.textAlign = 'center'
+      randomNumberRef.current = randomNumberDiv // Store the div in the ref
+      const uploadContainer = document.querySelector('.upload-container')
+      if (uploadContainer) {
+        uploadContainer.appendChild(randomNumberDiv) // Append the div after the uploaded image
+      }
+    } else {
+      const fontPreview = fontSignatureRef.current
+      if (fontPreview) {
+        const canvas = await html2canvas(fontPreview, { useCORS: true })
+        signatureData = canvas.toDataURL('image/png')
+
+        // Create a div to display the random number below the font preview
+        const randomNumberDiv = document.createElement('div')
+        randomNumberDiv.textContent = `Random Number: ${randomNumber}`
+        randomNumberDiv.style.marginTop = '10px'
+        randomNumberDiv.style.fontSize = '24px'
+        randomNumberDiv.style.textAlign = 'center'
+        randomNumberRef.current = randomNumberDiv // Store the div in the ref
+        fontPreview.parentNode.appendChild(randomNumberDiv) // Append the div after the font preview
+      }
+    }
+
+    if (signatureData) {
+      setFormData((prev) => ({
+        ...prev,
+        [box.id]: signatureData,
+      }))
+
+      setFormData((prev) => ({
+        ...prev,
+        [box.id + 'key']: randomNumber,
+      }))
+    }
+
+    setShowSignatureModal(false)
+
+    try {
+      const response = await axios.post(`${apiUrl}/api/save-signature`, {
+        signatureData,
+        randomNumber, // Send the random number to the API
+      })
+
+      if (response.status === 200) {
+        console.log('Signature saved successfully:', response.data)
+      } else {
+        console.error('Error saving signature:', response.data)
+      }
+    } catch (error) {
+      console.error('Error during API call:', error)
+    }
+  }
+
+  const fetchSavedSignatures2 = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/api/get-signatures`)
+      if (response.status === 200) {
+        setSavedSignatures2(response.data.signatures)
+      }
+    } catch (error) {
+      console.error('Error fetching saved signatures:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (showSignatureModal) {
+      fetchSavedSignatures2()
+    }
+  }, [showSignatureModal])
+
+  return (
+    <div key={`signature-${box.id}`} className='mb-4 border-top pt-3'>
+      <CButton
+        onClick={(event) => {
+          event.preventDefault()
+          setShowSignatureModal(true)
+        }}
+        color={signatureMethod === 'font' ? 'secondary' : 'primary'}
+      >
+        Signature
+      </CButton>
+      <CModal visible={showSignatureModal} onClose={() => setShowSignatureModal(false)}>
+        <div className='mb-4 border-top p-3'>
+          <CFormLabel>{box.id}</CFormLabel>
+          <div className='d-flex gap-2 mb-3'>
+            <CButton
+              color={signatureMethod === 'draw' ? 'secondary' : 'primary'}
+              onClick={() => setSignatureMethod('draw')}
+            >
+              Draw
+            </CButton>
+            <CButton
+              color={signatureMethod === 'font' ? 'secondary' : 'primary'}
+              onClick={() => setSignatureMethod('font')}
+            >
+              Type
+            </CButton>
+            <CButton
+              color={signatureMethod === 'upload' ? 'secondary' : 'primary'}
+              onClick={() => setSignatureMethod('upload')}
+            >
+              Upload
+            </CButton>
+            <CButton
+              color={signatureMethod === 'saved' ? 'secondary' : 'primary'}
+              onClick={() => setSignatureMethod('saved')}
+            >
+              Saved
+            </CButton>
+          </div>
+          {signatureMethod === 'draw' ? (
+            <div>
+              <canvas
+                ref={signatureCanvasRef}
+                width={300}
+                height={150}
+                className='border bg-white'
+                onMouseDown={startDrawing}
+                onMouseMove={drawSignature}
+              />
+              <CButton color='danger' size='sm' className='mt-2' onClick={clearSignature}>
+                Clear
+              </CButton>
+            </div>
+          ) : signatureMethod === 'upload' ? (
+            <div className='upload-container'>
+              <CFormInput
+                type='file'
+                accept='image/*'
+                onChange={(e) => {
+                  const file = e.target.files[0]
+                  if (file) {
+                    const reader = new FileReader()
+                    reader.onload = (event) => {
+                      setSignatureUpload(event.target.result)
+                    }
+                    reader.readAsDataURL(file)
+                  }
+                }}
+              />
+              {signatureUpload && (
+                <img
+                  src={signatureUpload}
+                  alt='Uploaded signature'
+                  style={{
+                    width: '300px',
+                    height: '150px',
+                    border: '1px solid #000',
+                    objectFit: 'contain',
+                    marginTop: '10px',
+                  }}
+                />
+              )}
+            </div>
+          ) : signatureMethod === 'saved' ? (
+            <div>
+              <h5>Saved Signatures</h5>
+              <div
+                className='d-flex gap-2'
+                style={{
+                  flexDirection: 'column',
+                  flexWrap: 'nowrap',
+                  alignContent: 'left',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                {savedSignatures2.map((signature) => (
+                  <div
+                    key={signature.sign_id}
+                    className='mt-2'
+                    style={{ border: 'solid 1px lightgray', width: '100%' }}
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        [box.id]: signature.signature_data,
+                      }))
+
+                      setFormData((prev) => ({
+                        ...prev,
+                        [box.id + 'key']: signature.sign_id,
+                      }))
+                    }}
+                  >
+                    <span>{signature.sign_id}</span>
+                    <img
+                      src={signature.signature_data}
+                      alt='Selected saved signature'
+                      style={{ width: '100%', height: '90px', objectFit: 'contain' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <CFormInput
+                value={signatureText}
+                onChange={(e) => setSignatureText(e.target.value)}
+                className='mb-3'
+                placeholder='Enter signature text'
+              />
+              <div
+                className='font-picker border p-2 bg-white'
+                style={{ height: '200px', overflowY: 'auto', position: 'relative' }}
+              >
+                {fonts.map((font) => (
+                  <div
+                    key={font}
+                    className={`font-option mb-2 p-2 ${selectedFont === font ? 'bg-light' : ''}`}
+                    onClick={() => setSelectedFont(font)}
+                  >
+                    <div
+                      ref={fontSignatureRef}
+                      style={{
+                        fontFamily: `'${font}', cursive`,
+                        fontSize: '3rem',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {signatureText || 'Signature'}
+                    </div>
+                    <small className='text-muted'>{font}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <CButton color='primary' onClick={saveSignature}>
+          Save Signature
+        </CButton>
+      </CModal>
+    </div>
+  )
+}
+
+const Document = memo(({ containerRef, fileType = 'pdf', docs, pdfPages, renderPDFPage }) => {
+  const MemoizedDocViewer = memo(DocViewer)
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {fileType === 'pdf' &&
+        pdfPages.map((page, index) => {
+          // Unique ID for each canvas
+          const canvasId = `pdf-canvas-${index}`
+          return (
+            <div key={index} style={{ marginBottom: '20px' }} className='pdf_canvas_load'>
+              <div
+                className='pdf_canvas_seperate'
+                style={{
+                  textAlign: 'center',
+                  margin: '10px 0',
+                  position: 'absolute',
+                  left: '0',
+                  background: 'red',
+                  padding: '10px',
+                }}
+              >
+                Page {index + 1}
+              </div>
+              <canvas
+                id={canvasId}
+                className=''
+                ref={(node) => {
+                  if (node) {
+                    const viewport = page.getViewport({ scale: 1 })
+                    node.width = viewport.width
+                    node.height = viewport.height
+                    renderPDFPage(page, node, viewport.width, viewport.height)
+                  }
+                }}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: 'auto',
+                  border: '1px solid #ccc',
+                }}
+              />
+            </div>
+          )
+        })}
+      {fileType === 'docx' && (
+        <MemoizedDocViewer
+          documents={docs}
+          pluginRenderers={DocViewerRenderers}
+          style={{ height: '100%', overflow: 'hidden' }}
+        />
+      )}
+    </div>
+  )
+})
+
 const DocumentViewer = () => {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
@@ -86,12 +463,9 @@ const DocumentViewer = () => {
   const isPublic = !!token && !!email
   const [showSignatureModal, setShowSignatureModal] = useState(false)
   const [currentSignatureField, setCurrentSignatureField] = useState(null)
-  // New state for storing uploaded signature images
   const [signatureUploads, setSignatureUploads] = useState({})
-
   const { documentid, id } = useParams()
   const documentId = isPublic ? id : documentid
-  const MemoizedDocViewer = memo(DocViewer)
   const [documentData, setDocumentData] = useState(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [numPages, setNumPages] = useState(null)
@@ -105,51 +479,28 @@ const DocumentViewer = () => {
   const [selectedSignature, setSelectedSignature] = useState(null)
   const [fontsLoaded, setFontsLoaded] = useState(false)
   const [docs, setDocs] = useState([])
+  const [pdfPages, setPdfPages] = useState([])
 
   const signatureCanvasRefs = useRef({})
   const fontSignatureRefs = useRef({})
-  const canvasRef = useRef(null)
+  const containerRef = useRef(null)
+  const mainCanvasRef = useRef(null)
   const didFetch = useRef(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const fetchSavedSignatures = async () => {
-    try {
-      const response = await axios.get(`${apiUrl}/api/get-signatures`)
-      if (response.status === 200) {
-        setSavedSignatures(response.data.signatures)
-      }
-    } catch (error) {
-      console.error('Error fetching saved signatures:', error)
+  // Memoize the PDF rendering to prevent re-renders on input changes
+  const renderPDFPage = useCallback((page, canvas, width, height) => {
+    const viewport = page.getViewport({ scale: 1 })
+    const context = canvas.getContext('2d')
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport,
     }
-  }
-
-  useEffect(() => {
-    if (showSignatureModal) {
-      fetchSavedSignatures()
-    }
-  }, [showSignatureModal])
-
-  // 1. Combine related state
-  const [signatureState, setSignatureState] = useState({
-    methods: {},
-    texts: {},
-    uploads: {},
-    selectedFonts: {},
-  })
-
-  // 2. Add loading states for different operations
-  const [loadingStates, setLoadingStates] = useState({
-    submission: false,
-    signatureSave: false,
-    pageLoad: false,
-  })
-
-  // 3. Add proper form validation state
-  const [formValidation, setFormValidation] = useState({
-    errors: {},
-    isValid: false,
-  })
+    page.render(renderContext).promise.then(() => {
+      console.log(`Page rendered on canvas: ${canvas.id}`)
+    })
+  }, [])
 
   useEffect(() => {
     const link = document.createElement('link')
@@ -185,26 +536,12 @@ const DocumentViewer = () => {
           setDocs([newDoc])
         }
       } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+        setError( err.message )
       }
     }
 
     fetchDocument()
-  }, [])
-
-  useEffect(() => {
-    if (signatureCanvasRefs.current) {
-      // Attach isEmpty method to canvas prototype
-      HTMLCanvasElement.prototype.isEmpty = function () {
-        const context = this.getContext('2d')
-        const pixelBuffer = new Uint32Array(
-          context.getImageData(0, 0, this.width, this.height).data.buffer,
-        )
-        return !pixelBuffer.some((color) => color !== 0)
-      }
-    }
+    // setLoading( false )
   }, [])
 
   const initializeFormData = (document) => {
@@ -221,31 +558,23 @@ const DocumentViewer = () => {
       .getDocument(pdfUrl)
       .promise.then((pdf) => {
         setNumPages(pdf.numPages)
-        renderPage(pageNumber, pdf)
+        const pages = []
+        for (let i = 1; i <= pdf.numPages; i++) {
+          pdf.getPage(i).then((page) => {
+            pages.push(page)
+            if (pages.length === pdf.numPages) {
+              setPdfPages(pages)
+            }
+          })
+        }
+        setLoading( false )
       })
       .catch((err) => setError(err.message))
   }
 
-  const loadDocx = (path) => {
-    const docxUrl = `${apiUrl}/my/${path}`
-    return [{ uri: docxUrl }]
-  }
-
-  const renderPage = (pageNumber, pdf) => {
-    pdf.getPage(pageNumber).then((page) => {
-      const scale = 1
-      const viewport = page.getViewport({ scale })
-      const canvas = canvasRef.current
-      const context = canvas.getContext('2d')
-      canvas.height = viewport.height
-      canvas.width = viewport.width
-
-      page.render({ canvasContext: context, viewport })
-    })
-  }
-
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    e.preventDefault()
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
@@ -286,6 +615,91 @@ const DocumentViewer = () => {
     }
   }
 
+  const captureAllCanvases = async () => {
+    const screenshots = []
+
+    // Get the .aDocument div
+    const aDocumentDiv = document.querySelector('.aDocument')
+    if (!aDocumentDiv) {
+      console.error('.aDocument div not found')
+      return screenshots
+    }
+
+    // Select all elements with class 'removeborderclass'
+    const elements = document.querySelectorAll('.removeborderclass')
+
+    // Loop through each element and remove the border
+    elements.forEach((element) => {
+      element.style.border = 'unset' // or you can use 'none' to completely remove the border
+    })
+
+    const elementscanvas = document.querySelectorAll('.aDocument canvas')
+
+    // Loop through each element and remove the border
+    elementscanvas.forEach((element) => {
+      element.style.border = 'unset' // or you can use 'none' to completely remove the border
+    })
+
+    // Select all elements with class 'removeborderclass'
+    const pdf_canvas_seperate = document.querySelectorAll('.pdf_canvas_seperate')
+
+    // Loop through each element and remove the border
+    pdf_canvas_seperate.forEach((element) => {
+      element.remove() // or you can use 'none' to completely remove the border
+    })
+
+    // Get the height of the first PDF page canvas
+    const firstCanvas = document.querySelector('.pdf_canvas_load canvas')
+    if (!firstCanvas) {
+      console.error('No PDF canvas found')
+      return screenshots
+    }
+    // const pageHeight = firstCanvas.height; // Height of one PDF page
+    const computedStyle = window.getComputedStyle(firstCanvas)
+    const pageHeight = parseFloat(computedStyle.height) // Height in pixels
+    // Calculate the number of pages based on the height of .aDocument
+    const totalHeight = aDocumentDiv.scrollHeight
+    const numPages = Math.ceil(totalHeight / pageHeight)
+
+    // Capture each page section
+    for (let i = 0; i < numPages; i++) {
+      try {
+        console.log('pageHeight', pageHeight)
+        // Calculate the top and height of the current page section
+        const top = i * pageHeight
+        const height = pageHeight
+        console.log('top', top)
+        console.log('height', height)
+        // Wait for the content to fully render (if necessary)
+        await new Promise((resolve) => setTimeout(resolve, 500))
+
+        // Use html2canvas to capture the current page section
+        const screenshot = await html2canvas(aDocumentDiv, {
+          logging: true, // Enable logging for debugging
+          useCORS: true, // Enable CORS for external resources
+          allowTaint: true, // Allow tainted canvases (if using external images without CORS)
+          scale: 2, // Increase scale for better quality
+          backgroundColor: '#FFFFFF', // Set background color to white
+          width: aDocumentDiv.scrollWidth, // Set width to match the div
+          height: height, // Set height to match the page height
+          x: 0, // Start from the left edge
+          y: top, // Start from the top of the current page
+          scrollX: 0, // Ensure no horizontal scroll offset
+          scrollY: top, // Set the vertical scroll offset to the top of the current page
+        })
+
+        // Add the screenshot to the array
+        screenshots.push(screenshot.toDataURL('image/png'))
+      } catch (error) {
+        console.error(`Error capturing page ${i + 1}:`, error)
+      }
+    }
+
+    return screenshots
+  }
+
+  const [screenshots, setScreenshots] = useState([])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -294,13 +708,15 @@ const DocumentViewer = () => {
     const errorMessages = []
 
     documentData.boxes.forEach((box) => {
-      const fieldType = box.field_type
+      const fieldType = box.id
       if (box.required && !formData[fieldType]) {
         errorMessages.push(`${fieldType}`)
         allFieldsValid = false
       }
     })
-
+    console.log(formData)
+    console.log(allFieldsValid)
+    // return false;
     if (!allFieldsValid) {
       toast.error(`Please fill out the required field: ${errorMessages.join(', ')}`, {
         duration: 3000,
@@ -343,10 +759,22 @@ const DocumentViewer = () => {
           }),
       )
 
+      const screenshots = await captureAllCanvases()
+      setScreenshots(screenshots)
+
+      // You can now handle the screenshots as needed, e.g., send them to a server
+      screenshots.forEach((screenshot, index) => {
+        console.log(`Screenshot of canvas ${index + 1}:`, screenshot)
+        // Send the screenshot to your server or handle it as needed
+      })
+
+      console.log(screenshots)
+
       const url = isPublic
         ? `${apiUrl}/api/user/documents/${documentId}/public/submit`
         : `${apiUrl}/api/user/documents/${documentId}/submit`
 
+      // const updatedFormData = { ...formData }; // Your existing form data
       const moreUpdatedFormData = (({ null: removedValue, ...rest }) => ({
         ...rest,
         signature: removedValue,
@@ -356,6 +784,7 @@ const DocumentViewer = () => {
         .post(url, {
           data: moreUpdatedFormData,
           status: 'pending',
+          screenshots: screenshots,
           ...(isPublic && { token, email }),
         })
         .then((response) => {
@@ -394,6 +823,7 @@ const DocumentViewer = () => {
   if (error) {
     return <div className='alert alert-danger mx-3 my-5'>Error loading document: {error}</div>
   }
+
   const validInputTypes = [
     'text',
     'number',
@@ -405,13 +835,17 @@ const DocumentViewer = () => {
     'file',
   ]
 
-  return (
+  // const MemoizedDocument = memo(Document)
+  return loading ? (
+    <div className='d-flex justify-content-center align-items-center vh-100'>
+      <CSpinner color='primary' />
+    </div>
+  ) : (
     <>
       <Toaster />
       <style>
         {`
         #proxy-renderer{
-          // overflow: hidden !important;
           overflow-y: hidden !important;
         }
           .font-grid {
@@ -482,97 +916,77 @@ const DocumentViewer = () => {
           }
         `}
       </style>
-      <div className='d-flex p-4 gap-4' style={{ height: '100vh', overflow: 'auto' }}>
-        {/* Document Viewer */}
-        <div className='flex-grow-1 h-100' style={{ overflow: 'auto' }}>
-          {/* <h1>{documentData.name}</h1> */}
-
-          <div
-            className='document-container border bg-light'
-            style={{
-              position: 'relative',
-              minHeight: '800px',
-              // overflow: 'hidden !Important',
-              overflow: 'hidden',
-              // minHeight: "800px",
-              scrollbarWidth: 'none !Important',
-              // overflow: "hidden"
-            }}
-          >
-            {/* Input Fields Preview */}
+      <div className='d-flex p-4 gap-4' style={{}}>
+        <div
+          className=''
+          style={{
+            minWidth: '945px',
+            height: 'max-content',
+            minHeight: '1222.46px',
+            maxWidth: '945px',
+            position: 'relative',
+            minHeight: '800px',
+          }}
+        >
+          <div style={{}} className='aDocument'>
             {documentData.boxes
               .filter((box) => box.type === 'input')
               .map((box, index) => (
                 <div
                   key={index}
+                  className='removeborderclass'
                   style={{
-                    // position: 'absolute',
-                    // top: `${box.top}px`,
-                    // left: `${box.left}px`,
-                    // zIndex: 1,
-                    // backgroundColor: 'white',
-                    // padding: '2px 5px',
-                    // border: '1px dashed #000',
-                    // width: box.width ? `${box.width}px` : '350px', // Set width from the box data
-                    // height: box.height ? `${box.height}px` : '50px', // Set height from the box data
-                    // fontSize: `${Math.min( box.width, box.height )* 5}px !Important`, // Dynamic font size
-                    // overflow: 'hidden', // Ensures text doesn't overflow
-                    // textAlign: 'center',
-                    // display: 'flex',
-                    // alignItems: 'center',
-                    // justifyContent: 'center',
                     position: 'absolute',
-                    top: `${box.top}px`,
-                    left: `${box.left}px`,
+                    top: `${parseFloat(box.top)}%`,
+                    left: `${parseFloat(box.left)}%`,
                     zIndex: 1,
                     padding: '2px 5px',
                     border: '1px dashed #000',
-                    width: box.width ? `${box.width}px` : '350px', // Set width from the box data
-                    height: box.height ? `${box.height}px` : '50px', // Set height from the box data
-                    fontSize: `${Math.min(box.width / 10, box.height / 2)}px`, // Dynamic font size
-                    overflow: 'hidden', // Ensures text doesn't overflow
+                    width: box.width ? `${parseFloat(box.width)}%` : '350px',
+                    height: box.height ? `${parseFloat(box.height)}%` : '50px',
+                    // fontSize: `${Math.min(parseFloat(box.width+"%") / 10, parseFloat(box.height+"%") / 1)}rem`,
+                    fontSize: `${Math.min(parseFloat(box.width + '%') / 10, parseFloat(box.height + '%') / 2)}rem`,
+                    overflow: 'hidden',
                     textAlign: 'center',
                     backgroundColor: 'White',
-                    // fontSize: 2rem,// Dynamic font size
-                    // display: 'flex',
-                    // alignItems: 'center',
-                    // justifyContent: 'center',
                   }}
                 >
-                  {formData[box.field_type]}
+                  {formData[box.id]}
                 </div>
               ))}
 
-            {/* Signature Fields Preview */}
             {documentData.boxes
               .filter((box) => box.type === 'signature')
               .map((box, index) => (
                 <div
                   key={index}
+                  className='removeborderclass'
                   style={{
                     position: 'absolute',
-                    top: `${box.top}px`,
-                    left: `${box.left}px`,
+                    top: `${parseFloat(box.top)}%`,
+                    left: `${parseFloat(box.left)}%`,
+                    width: `${box.width}%`,
+                    height: `${box.height}%`,
                     zIndex: 1,
                     backgroundColor: 'white',
                     border: '1px solid #000',
                   }}
                 >
-                  {formData[box.field_type] ? (
+                  {formData[box.id] ? (
                     <img
-                      src={formData[box.field_type]}
+                      src={formData[box.id]}
                       alt='Signature'
                       style={{
-                        width: `${box.width}px`,
-                        height: `${box.height}px`,
+                        width: `100%`,
+                        height: `100%`,
                         objectFit: 'contain',
                       }}
                     />
                   ) : (
                     <div
                       style={{
-                        width: `${box.width}px`,
-                        height: `${box.height}px`,
+                        width: `100%`,
+                        height: `100%`,
                         border: '1px dashed #000',
                         display: 'flex',
                         alignItems: 'center',
@@ -581,57 +995,32 @@ const DocumentViewer = () => {
                         backgroundColor: 'white',
                       }}
                     >
-                      <sub>signature</sub>
+                      {/* <sub>signature</sub> */}
                     </div>
                   )}
+                  <span key={index + 'key'}>{formData[box.id + 'key']}</span>
                 </div>
               ))}
-            <canvas
-              ref={canvasRef}
-              style={{
-                width: '100%',
-                height: 'auto',
-                display: documentData?.path?.endsWith('.pdf') ? 'block' : 'none',
-                backgroundColor: 'white !important',
-                // overflow: 'scroll'
-              }}
+            <Document
+              containerRef={containerRef}
+              fileType={'pdf'}
+              docs={docs}
+              mainCanvasRef={mainCanvasRef}
+              pdfPages={pdfPages}
+              renderPDFPage={renderPDFPage} // Pass the memoized function
             />
-            {documentData?.path?.endsWith('.docx') && (
-              <MemoizedDocViewer
-                documents={docs}
-                pluginRenderers={DocViewerRenderers}
-                theme={{ disableThemeScrollbar: true }}
-                style={{ minHeight: '800px', overflow: 'hidden !important' }}
-                config={{
-                  header: {
-                    disableHeader: false,
-                    disableFileName: false,
-                    retainURLParams: false,
-                  },
-                }}
-              />
-            )}
-          </div>
-
-          <div className='mt-3'>
-            <CButton
-              onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-              disabled={pageNumber <= 1}
-            >
-              Previous
-            </CButton>
-            <CButton
-              onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-              disabled={pageNumber >= numPages}
-              className='ms-2'
-            >
-              Next
-            </CButton>
           </div>
         </div>
 
-        {/* Form Fields */}
-        <div className='flex-shrink-0 h-100' style={{ width: 'fit-content', overflowY: 'auto' }}>
+        <div
+          className='h-100'
+          style={{
+            width: 'fit-content',
+            overflowY: 'hidden',
+            position: 'sticky',
+            top: '25%',
+          }}
+        >
           <h3>Fill Document</h3>
 
           <CForm className='gap-3' noValidate={false} onSubmit={handleSubmit}>
@@ -648,8 +1037,8 @@ const DocumentViewer = () => {
                       ) : null}
                     </CFormLabel>
                     <CFormInput
-                      name={box.field_type}
-                      value={formData[box.field_type]}
+                      name={box.id} // Use the id as the name
+                      value={formData[box.id] || ''} // Use the id to get the value
                       onChange={handleInputChange}
                       placeholder={`Enter ${box.field_type}`}
                       required={box.required === 1 ? true : undefined}
@@ -658,290 +1047,16 @@ const DocumentViewer = () => {
                   </div>
                 )
               } else if (box.type === 'signature') {
+                console.log(savedSignatures)
                 return (
-                  <div key={`signature-${index}`} className='mb-4 border-top pt-3'>
-                    <CButton
-                      onClick={(event) => {
-                        event.preventDefault()
-                        setCurrentSignatureField(box.field_type)
-                        if (!signatureMethods[box.field_type]) {
-                          setSignatureMethods((prev) => ({ ...prev, [box.field_type]: 'draw' }))
-                        }
-                        setShowSignatureModal(true)
-                      }}
-                      color={signatureMethods[box.field_type] === 'font' ? 'secondary' : 'primary'}
-                    >
-                      Signature
-                    </CButton>
-                    <CModal
-                      visible={showSignatureModal}
-                      onClose={() => {
-                        setShowSignatureModal(false)
-                      }}
-                    >
-                      <div className='mb-4 border-top p-3'>
-                        <CFormLabel>{box.field_type}</CFormLabel>
-                        <div className='d-flex gap-2 mb-3'>
-                          <CButton
-                            color={
-                              signatureMethods[box.field_type] === 'draw' ? 'secondary' : 'primary'
-                            }
-                            onClick={() => {
-                              setSignatureMethods((prev) => ({
-                                ...prev,
-                                [box.field_type]: 'draw',
-                              }))
-                            }}
-                          >
-                            Draw
-                          </CButton>
-                          <CButton
-                            color={
-                              signatureMethods[box.field_type] === 'font' ? 'secondary' : 'primary'
-                            }
-                            onClick={() => {
-                              setSignatureMethods((prev) => ({
-                                ...prev,
-                                [box.field_type]: 'font',
-                              }))
-                            }}
-                          >
-                            Type
-                          </CButton>
-                          <CButton
-                            color={
-                              signatureMethods[box.field_type] === 'upload'
-                                ? 'secondary'
-                                : 'primary'
-                            }
-                            onClick={() => {
-                              setSignatureMethods((prev) => ({
-                                ...prev,
-                                [box.field_type]: 'upload',
-                              }))
-                            }}
-                          >
-                            Upload
-                          </CButton>
-                          <CButton
-                            color={
-                              signatureMethods[box.field_type] === 'saved' ? 'secondary' : 'primary'
-                            }
-                            onClick={() => {
-                              setSignatureMethods((prev) => ({
-                                ...prev,
-                                [box.field_type]: 'saved',
-                              }))
-                            }}
-                          >
-                            Saved
-                          </CButton>
-                        </div>
-                        {signatureMethods[box.field_type] === 'draw' ? (
-                          <div>
-                            <canvas
-                              ref={(el) => (signatureCanvasRefs.current[box.field_type] = el)}
-                              width={300}
-                              height={150}
-                              className='border bg-white'
-                              onMouseDown={(e) => startDrawing(e, box.field_type)}
-                              onMouseMove={(e) => drawSignature(e, box.field_type)}
-                            />
-                            <CButton
-                              color='danger'
-                              size='sm'
-                              className='mt-2'
-                              onClick={() => {
-                                clearSignature(box.field_type)
-                              }}
-                            >
-                              Clear
-                            </CButton>
-                          </div>
-                        ) : signatureMethods[box.field_type] === 'upload' ? (
-                          <div>
-                            <CFormInput
-                              type='file'
-                              accept='image/*'
-                              onChange={(e) => {
-                                const file = e.target.files[0]
-                                if (file) {
-                                  const reader = new FileReader()
-                                  reader.onload = (event) => {
-                                    const dataUrl = event.target.result
-                                    setSignatureUploads((prev) => ({
-                                      ...prev,
-                                      [box.field_type]: dataUrl,
-                                    }))
-                                  }
-                                  reader.readAsDataURL(file)
-                                }
-                              }}
-                            />
-                            {signatureUploads[box.field_type] && (
-                              <img
-                                src={signatureUploads[box.field_type]}
-                                alt='Uploaded signature'
-                                style={{
-                                  width: '300px',
-                                  height: '150px',
-                                  border: '1px solid #000',
-                                  objectFit: 'contain',
-                                  marginTop: '10px',
-                                }}
-                              />
-                            )}
-                          </div>
-                        ) : signatureMethods[box.field_type] === 'saved' ? (
-                          <div>
-                            <h5>Saved Signatures</h5>
-                            <div
-                              className='d-flex gap-2'
-                              style={{
-                                flexDirection: 'column',
-                                flexWrap: 'nowrap',
-                                alignContent: 'left',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                              }}
-                            >
-                              {savedSignatures.map((signature) => (
-                                <div
-                                  key={signature.sign_id}
-                                  className='mt-2'
-                                  style={{ border: 'solid 1px lightgray', width: '100%' }}
-                                  onClick={() => {
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      [currentSignatureField]: signature.signature_data,
-                                    }))
-                                  }}
-                                >
-                                  <span>{signature.sign_id}</span>
-                                  <img
-                                    src={signature.signature_data}
-                                    alt='Selected saved signature'
-                                    style={{ width: '100%', height: '90px', objectFit: 'contain' }}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <CFormInput
-                              value={signatureTexts[box.field_type] || ''}
-                              onChange={(e) => {
-                                setSignatureTexts((prev) => ({
-                                  ...prev,
-                                  [box.field_type]: e.target.value,
-                                }))
-                              }}
-                              className='mb-3'
-                              placeholder='Enter signature text'
-                            />
-                            <div
-                              className='font-picker border p-2 bg-white'
-                              style={{ height: '200px', overflowY: 'auto', position: 'relative' }}
-                            >
-                              {fonts.map((font) => (
-                                <div
-                                  key={font}
-                                  className={`font-option mb-2 p-2 ${selectedFonts[box.field_type] === font ? 'bg-light' : ''}`}
-                                  onClick={() => {
-                                    setSelectedFonts((prev) => ({
-                                      ...prev,
-                                      [box.field_type]: font,
-                                    }))
-                                  }}
-                                >
-                                  <div
-                                    ref={(el) => {
-                                      if (selectedFonts[box.field_type] === font) {
-                                        fontSignatureRefs.current[box.field_type] = el
-                                      }
-                                    }}
-                                    style={{
-                                      fontFamily: `'${font}', cursive`,
-                                      fontSize: '3rem',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {signatureTexts[box.field_type] || 'Signature'}
-                                  </div>
-                                  <small className='text-muted'>{font}</small>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <CButton
-                        color='primary'
-                        onClick={async () => {
-                          console.log('Saving signature')
-                          let signatureData = ''
-                          if (signatureMethods[currentSignatureField] === 'draw') {
-                            const canvas = signatureCanvasRefs.current[currentSignatureField]
-                            if (canvas && !canvas.isEmpty()) {
-                              const signatureDataUrl = canvas.toDataURL()
-                              signatureData = canvas.toDataURL()
-
-                              setFormData((prev) => ({
-                                ...prev,
-                                [currentSignatureField]: signatureDataUrl,
-                              }))
-                            }
-                          } else if (signatureMethods[currentSignatureField] === 'upload') {
-                            const uploadedImage = signatureUploads[currentSignatureField]
-                            if (uploadedImage) {
-                              const signatureDataUrl = uploadedImage
-                              signatureData = uploadedImage
-                              setFormData((prev) => ({
-                                ...prev,
-                                [currentSignatureField]: uploadedImage,
-                              }))
-                            }
-                          } else {
-                            const fontPreview = fontSignatureRefs.current[currentSignatureField]
-                            if (fontPreview) {
-                              const canvas = await html2canvas(fontPreview, { useCORS: true })
-                              const signatureDataUrl = canvas.toDataURL('image/png')
-                              signatureData = canvas.toDataURL('image/png')
-                              setFormData((prev) => ({
-                                ...prev,
-                                [currentSignatureField]: signatureDataUrl,
-                              }))
-                              return
-                            }
-                          }
-                          setShowSignatureModal(false)
-                          if (signatureMethods[currentSignatureField] === 'saved') {
-                            return
-                          }
-
-                          try {
-                            // Make a POST request using axios
-                            const response = await axios.post(`${apiUrl}/api/save-signature`, {
-                              signatureData, // The signature data you want to send
-                            })
-
-                            if (response.status === 200) {
-                              console.log('Signature saved successfully:', response.data)
-                              // Optionally update form data or close the modal
-                              setShowSignatureModal(false) // Close modal after saving
-                            } else {
-                              console.error('Error saving signature:', response.data)
-                            }
-                          } catch (error) {
-                            console.error('Error during API call:', error)
-                          }
-                        }}
-                      >
-                        Save Signature
-                      </CButton>
-                    </CModal>
-                  </div>
+                  <SignatureField
+                    key={`signature-${box.id}`}
+                    box={box}
+                    formData={formData}
+                    setFormData={setFormData}
+                    fonts={fonts}
+                    savedSignatures={savedSignatures}
+                  />
                 )
               } else {
                 return null
