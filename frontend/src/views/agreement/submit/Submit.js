@@ -208,14 +208,16 @@ const Submit = () => {
                   <CTableHeaderCell scope="row">{index + 1}</CTableHeaderCell>
                   <CTableDataCell>{submission.document.name}</CTableDataCell>
                   <CTableDataCell>
-                    <button
-                      onClick={() =>
-                        window.open(`${apiUrl}/storage/${submission.pdfpath}`, '_blank')
-                      }
-                      className="btn btn-outline-dark"
-                    >
-                      Download
-                    </button>
+                    {submission.status !== 'pending' && (
+                      <button
+                        onClick={() =>
+                          window.open(`${apiUrl}/public/storage/${submission.pdfpath}`, '_blank')
+                        }
+                        className="btn btn-outline-dark"
+                      >
+                        Download
+                      </button>
+                    )}
                   </CTableDataCell>
                   <CTableDataCell>
                     {submission.status !== 'pending' && (
@@ -261,7 +263,7 @@ const Submit = () => {
               <CButton
                 color="primary"
                 onClick={() =>
-                  window.open(`${apiUrl}/storage/${currentSubmission.pdfpath}`, '_blank')
+                  window.open(`${apiUrl}/public/storage/${currentSubmission.pdfpath}`, '_blank')
                 }
               >
                 Download PDF

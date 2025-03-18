@@ -520,7 +520,7 @@ const DocumentViewer = () => {
         setLoading(true)
         let url = isPublic
           ? `${apiUrl}/api/documents/public/${documentId}/${email}/${token}`
-          : `${apiUrl}/api/documents/pending/${documentId}/`
+          : `${apiUrl}/api/documents/pending/${documentId}`
         url = type ? `${url}?type=agreement` : url
 
         const response = await axios.get(url)
@@ -536,7 +536,7 @@ const DocumentViewer = () => {
           setDocs([newDoc])
         }
       } catch (err) {
-        setError( err.message )
+        setError(err.message)
       }
     }
 
@@ -567,7 +567,7 @@ const DocumentViewer = () => {
             }
           })
         }
-        setLoading( false )
+        setLoading(false)
       })
       .catch((err) => setError(err.message))
   }
@@ -809,6 +809,8 @@ const DocumentViewer = () => {
       }
     } finally {
       setIsSubmitting(false)
+      const url = window.location.href.replace(/\/view$/, '/submit')
+      window.location.href = url
     }
   }
 
@@ -945,7 +947,8 @@ const DocumentViewer = () => {
                     width: box.width ? `${parseFloat(box.width)}%` : '350px',
                     height: box.height ? `${parseFloat(box.height)}%` : '50px',
                     // fontSize: `${Math.min(parseFloat(box.width+"%") / 10, parseFloat(box.height+"%") / 1)}rem`,
-                    fontSize: `${Math.min(parseFloat(box.width + '%') / 10, parseFloat(box.height + '%') / 2)}rem`,
+                    // @prettier-ignore
+                    fontSize: `${box.height - box.height * 10}px !important`,
                     overflow: 'hidden',
                     textAlign: 'center',
                     backgroundColor: 'White',

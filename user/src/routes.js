@@ -26,6 +26,7 @@ const SubmitAgreement = React.lazy(() => import('./views/agreement/submit/Submit
 // const ProcessDocument = React.lazy(() => import('./views/document/process/Process'))
 // Base, Buttons, Forms, Charts, Icons, Notifications, etc. (Same as before)
 
+const Logout = React.lazy(() => import('./views/logout'))
 const routes = [
   { path: '/', exact: true, name: 'Home' },
   { path: '/dashboard', name: 'Dashboard', element: Dashboard },
@@ -60,7 +61,7 @@ const routes = [
     element: ViewPublicAgreement,
   },
   { path: '/agreement/submit/', name: 'View Document', element: SubmitAgreement }, // Updated route to accept dynamic ID
-
+  { path: '/logout/', name: 'Logout', element: Logout }, // Updated route to accept dynamic ID
   // Other routes (same as before)
 ]
 

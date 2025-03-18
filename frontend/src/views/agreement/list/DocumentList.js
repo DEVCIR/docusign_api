@@ -1,4 +1,4 @@
-import { Rnd } from 'react-rnd';
+import { Rnd } from 'react-rnd'
 
 const DraggableField = ({
   id,
@@ -19,38 +19,55 @@ const DraggableField = ({
 }) => {
   const getIconForFieldType = (fieldType) => {
     switch (fieldType) {
-      case 'name': return <FaUser size={30} />;
-      case 'email': return <FaEnvelope size={30} />;
-      case 'company': return <FaBuilding size={30} />;
-      case 'title': return <FaTag size={30} />;
-      case 'text': return <FaTextHeight size={30} />;
-      case 'date': return <FaCalendar size={30} />;
-      case 'initial': return <FaCheck size={30} />;
-      case 'checkbox': return <FaCheck size={30} />;
-      case 'signature': return <FaPen size={30} />;
-      default: return <FaTextHeight size={30} />;
+      case 'name':
+        return <FaUser size={30} />
+      case 'email':
+        return <FaEnvelope size={30} />
+      case 'company':
+        return <FaBuilding size={30} />
+      case 'title':
+        return <FaTag size={30} />
+      case 'text':
+        return <FaTextHeight size={30} />
+      case 'date':
+        return <FaCalendar size={30} />
+      case 'initial':
+        return <FaCheck size={30} />
+      case 'checkbox':
+        return <FaCheck size={30} />
+      case 'signature':
+        return <FaPen size={30} />
+      default:
+        return <FaTextHeight size={30} />
     }
-  };
+  }
 
   const getPlaceholder = (fieldType) => {
     switch (fieldType) {
-      case 'name': return 'Enter Name here';
-      case 'email': return 'Enter Email here';
-      case 'company': return 'Enter Company name';
-      case 'title': return 'Enter Title here';
-      case 'date': return 'Select Date';
-      case 'initial': return 'Enter Initials';
-      default: return 'Enter text here';
+      case 'name':
+        return 'Enter Name here'
+      case 'email':
+        return 'Enter Email here'
+      case 'company':
+        return 'Enter Company name'
+      case 'title':
+        return 'Enter Title here'
+      case 'date':
+        return 'Select Date'
+      case 'initial':
+        return 'Enter Initials'
+      default:
+        return 'Enter text here'
     }
-  };
+  }
 
   const handleRequiredClick = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onToggleRequired();
-  };
+    e.stopPropagation()
+    e.preventDefault()
+    onToggleRequired()
+  }
 
-  if (page !== currentPage) return null;
+  if (page !== currentPage) return null
 
   return (
     <Rnd
@@ -60,7 +77,7 @@ const DraggableField = ({
       minHeight={30}
       bounds="parent"
       onDragStop={(e, d) => {
-        onDragStop(id, { left: d.x, top: d.y });
+        onDragStop(id, { left: d.x, top: d.y })
       }}
       onResizeStop={(e, direction, ref, delta, position) => {
         onResizeStop(id, {
@@ -68,35 +85,41 @@ const DraggableField = ({
           top: position.y,
           width: ref.offsetWidth,
           height: ref.offsetHeight,
-        });
+        })
       }}
       onClick={(e) => {
-        e.stopPropagation();
-        onSelect(id);
+        e.stopPropagation()
+        onSelect(id)
       }}
       style={{
-        border: isSelected ? '2px solid #007bff' : type === 'signature' ? '1px solid black' : '1px dashed gray',
+        border: isSelected
+          ? '2px solid #007bff'
+          : type === 'signature'
+            ? '1px solid black'
+            : '1px dashed gray',
         backgroundColor: type === 'signature' && !isSelected ? '#fff' : 'transparent',
         zIndex: isSelected ? 1000 : 10,
       }}
       enableResizing={isSelected}
       disableDragging={!isSelected}
     >
-      <div style={{ 
-        width: '100%', 
-        height: '100%', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        position: 'relative',
-        userSelect: 'none',
-      }}>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          userSelect: 'none',
+        }}
+      >
         {/* Close button */}
         <span
           className="fs-3 text-secondary text-end cursor-pointer"
           onClick={(e) => {
-            e.stopPropagation();
-            onDelete(id);
+            e.stopPropagation()
+            onDelete(id)
           }}
           style={{
             position: 'absolute',
@@ -122,8 +145,8 @@ const DraggableField = ({
             </div>
             <span
               onClick={(e) => {
-                e.stopPropagation();
-                onToggleRequired();
+                e.stopPropagation()
+                onToggleRequired()
               }}
               style={{
                 position: 'absolute',
@@ -136,10 +159,10 @@ const DraggableField = ({
                 background: '#fff',
                 padding: '2px 4px',
                 borderRadius: '4px',
-                boxShadow: '0px 0px 2px rgba(0,0,0,0.3)'
+                boxShadow: '0px 0px 2px rgba(0,0,0,0.3)',
               }}
             >
-              <input 
+              <input
                 type="checkbox"
                 checked={required}
                 readOnly
@@ -155,8 +178,8 @@ const DraggableField = ({
         )}
       </div>
     </Rnd>
-  );
-};
+  )
+}
 
 const DocumentList = ({
   loading,
@@ -169,47 +192,47 @@ const DocumentList = ({
   currentDocument,
   // ... other props
 }) => {
-  const [selectedField, setSelectedField] = useState(null);
-  const containerRef = useRef(null);
-  const [inputBoxes, setInputBoxes] = useState({});
-  const [signatureBoxes, setSignatureBoxes] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedField, setSelectedField] = useState(null)
+  const containerRef = useRef(null)
+  const [inputBoxes, setInputBoxes] = useState({})
+  const [signatureBoxes, setSignatureBoxes] = useState({})
+  const [currentPage, setCurrentPage] = useState(1)
 
   const handleFieldDragStop = (id, type, newPosition) => {
     if (type === 'input') {
-      setInputBoxes(prev => ({
+      setInputBoxes((prev) => ({
         ...prev,
-        [currentPage]: prev[currentPage].map(box => 
-          box.id === id ? { ...box, ...newPosition } : box
-        )
-      }));
+        [currentPage]: prev[currentPage].map((box) =>
+          box.id === id ? { ...box, ...newPosition } : box,
+        ),
+      }))
     } else {
-      setSignatureBoxes(prev => ({
+      setSignatureBoxes((prev) => ({
         ...prev,
-        [currentPage]: prev[currentPage].map(box => 
-          box.id === id ? { ...box, ...newPosition } : box
-        )
-      }));
+        [currentPage]: prev[currentPage].map((box) =>
+          box.id === id ? { ...box, ...newPosition } : box,
+        ),
+      }))
     }
-  };
+  }
 
   const handleFieldResizeStop = (id, type, newDimensions) => {
     if (type === 'input') {
-      setInputBoxes(prev => ({
+      setInputBoxes((prev) => ({
         ...prev,
-        [currentPage]: prev[currentPage].map(box => 
-          box.id === id ? { ...box, ...newDimensions } : box
-        )
-      }));
+        [currentPage]: prev[currentPage].map((box) =>
+          box.id === id ? { ...box, ...newDimensions } : box,
+        ),
+      }))
     } else {
-      setSignatureBoxes(prev => ({
+      setSignatureBoxes((prev) => ({
         ...prev,
-        [currentPage]: prev[currentPage].map(box => 
-          box.id === id ? { ...box, ...newDimensions } : box
-        )
-      }));
+        [currentPage]: prev[currentPage].map((box) =>
+          box.id === id ? { ...box, ...newDimensions } : box,
+        ),
+      }))
     }
-  };
+  }
 
   const addInputBox = (fieldType) => {
     const newBox = {
@@ -221,13 +244,13 @@ const DocumentList = ({
       height: 30,
       required: false,
       page: currentPage,
-    };
+    }
 
-    setInputBoxes(prev => ({
+    setInputBoxes((prev) => ({
       ...prev,
-      [currentPage]: [...(prev[currentPage] || []), newBox]
-    }));
-  };
+      [currentPage]: [...(prev[currentPage] || []), newBox],
+    }))
+  }
 
   const addSignatureBox = (fieldType) => {
     const newBox = {
@@ -239,48 +262,48 @@ const DocumentList = ({
       height: 30,
       required: false,
       page: currentPage,
-    };
+    }
 
-    setSignatureBoxes(prev => ({
+    setSignatureBoxes((prev) => ({
       ...prev,
-      [currentPage]: [...(prev[currentPage] || []), newBox]
-    }));
-  };
+      [currentPage]: [...(prev[currentPage] || []), newBox],
+    }))
+  }
 
   const toggleFieldRequired = (id, type) => {
     if (type === 'input') {
-      setInputBoxes(prev => ({
+      setInputBoxes((prev) => ({
         ...prev,
-        [currentPage]: (prev[currentPage] || []).map(box => 
-          box.id === id ? { ...box, required: !box.required } : box
-        )
-      }));
+        [currentPage]: (prev[currentPage] || []).map((box) =>
+          box.id === id ? { ...box, required: !box.required } : box,
+        ),
+      }))
     } else {
-      setSignatureBoxes(prev => ({
+      setSignatureBoxes((prev) => ({
         ...prev,
-        [currentPage]: (prev[currentPage] || []).map(box => 
-          box.id === id ? { ...box, required: !box.required } : box
-        )
-      }));
+        [currentPage]: (prev[currentPage] || []).map((box) =>
+          box.id === id ? { ...box, required: !box.required } : box,
+        ),
+      }))
     }
-  };
+  }
 
   const deleteField = (id, type) => {
     if (type === 'input') {
-      setInputBoxes(prev => ({
+      setInputBoxes((prev) => ({
         ...prev,
-        [currentPage]: prev[currentPage].filter(box => box.id !== id)
-      }));
+        [currentPage]: prev[currentPage].filter((box) => box.id !== id),
+      }))
     } else {
-      setSignatureBoxes(prev => ({
+      setSignatureBoxes((prev) => ({
         ...prev,
-        [currentPage]: prev[currentPage].filter(box => box.id !== id)
-      }));
+        [currentPage]: prev[currentPage].filter((box) => box.id !== id),
+      }))
     }
     if (selectedField === id) {
-      setSelectedField(null);
+      setSelectedField(null)
     }
-  };
+  }
 
   // ... rest of your component code ...
 
@@ -293,7 +316,7 @@ const DocumentList = ({
       ) : (
         <>
           {/* ... your existing table code ... */}
-          
+
           <CModal visible={editModalVisible} onClose={() => setEditModalVisible(false)} size="xl">
             <CModalHeader>
               <CModalTitle>Edit Document</CModalTitle>
@@ -314,7 +337,7 @@ const DocumentList = ({
                   onClick={() => setSelectedField(null)}
                 >
                   {/* Your PDF/DOCX rendering code */}
-                  
+
                   {/* Render input boxes */}
                   {Object.entries(inputBoxes).map(([page, boxes]) =>
                     boxes.map((box) => (
@@ -336,7 +359,7 @@ const DocumentList = ({
                         page={parseInt(page)}
                         currentPage={currentPage}
                       />
-                    ))
+                    )),
                   )}
 
                   {/* Render signature boxes */}
@@ -360,10 +383,10 @@ const DocumentList = ({
                         page={parseInt(page)}
                         currentPage={currentPage}
                       />
-                    ))
+                    )),
                   )}
                 </div>
-                
+
                 {/* Sidebar with field buttons */}
                 <div style={{ width: '25%', padding: '20px' }}>
                   {/* ... your existing sidebar code ... */}
@@ -382,7 +405,7 @@ const DocumentList = ({
         </>
       )}
     </CContainer>
-  );
-};
+  )
+}
 
-export default DocumentList; 
+export default DocumentList

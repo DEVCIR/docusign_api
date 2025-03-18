@@ -45,13 +45,13 @@ const List = () => {
 
   useEffect(() => {
     fetchDocuments()
-    fetchUsers() // Fetch users to display in send modal
+    // fetchUsers() // Do not need this in user panel
   }, [])
 
   const fetchDocuments = async () => {
     try {
       const response = await axios.get(
-        type ? `${apiUrl}/api/user/documents/?type=agreement` : `${apiUrl}/api/user/documents/`,
+        type ? `${apiUrl}/api/user/documents?type=agreement` : `${apiUrl}/api/user/documents`,
       )
       setDocuments(response.data.document)
       setLoading(false)

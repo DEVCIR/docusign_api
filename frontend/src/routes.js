@@ -20,6 +20,8 @@ const SubmitAgreement = React.lazy(() => import('./views/agreement/submit/Submit
 const CreateUser = React.lazy(() => import('./views/user/add/Add'))
 const ListUser = React.lazy(() => import('./views/user/list/List'))
 
+const Logout = React.lazy(() => import('./views/logout'))
+
 // Base, Buttons, Forms, Charts, Icons, Notifications, etc. (Same as before)
 const routes = [
   { path: '/', exact: true, name: 'Home' },
@@ -39,6 +41,7 @@ const routes = [
   { path: '/agreement/list', name: 'List Document', element: ListAgreement },
   { path: '/agreement/view/:documentid?', name: 'View Document', element: ViewAgreement }, // Updated route to accept dynamic ID
   { path: '/agreement/submit/', name: 'View Document', element: SubmitAgreement }, // Updated route to accept dynamic ID
+  { path: '/logout/', name: 'Logout', element: Logout }, // Updated route to accept dynamic ID
 
   // Other routes (same as before)
 ]

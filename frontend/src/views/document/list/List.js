@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import fs from 'fs'
-import { Document} from '../create/Create'
+import { Document } from '../create/Create'
 import {
   CButton,
   CContainer,
@@ -45,28 +44,28 @@ const INITIAL_SIGNATURE_SIZE = { width: 200, height: 100 }
 const renderPDFPage = async (page, canvas, width, height) => {
   try {
     // Check if canvas is already being used
-    if (canvas.dataset.rendering === 'true') return;
+    if (canvas.dataset.rendering === 'true') return
 
-    canvas.dataset.rendering = 'true';
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(width / viewport.width, height / viewport.height);
-    const scaledViewport = page.getViewport({ scale });
+    canvas.dataset.rendering = 'true'
+    const viewport = page.getViewport({ scale: 1 })
+    const scale = Math.min(width / viewport.width, height / viewport.height)
+    const scaledViewport = page.getViewport({ scale })
 
-    canvas.height = scaledViewport.height;
-    canvas.width = scaledViewport.width;
+    canvas.height = scaledViewport.height
+    canvas.width = scaledViewport.width
 
     const renderContext = {
       canvasContext: canvas.getContext('2d', { alpha: false }),
       viewport: scaledViewport,
-    };
+    }
 
-    await page.render(renderContext).promise;
-    canvas.dataset.rendering = 'false';
+    await page.render(renderContext).promise
+    canvas.dataset.rendering = 'false'
   } catch (error) {
-    console.error('Error rendering PDF page:', error);
-    canvas.dataset.rendering = 'false';
+    console.error('Error rendering PDF page:', error)
+    canvas.dataset.rendering = 'false'
   }
-};
+}
 const clampBoxPosition = (box, containerWidth, containerHeight) => ({
   ...box,
   left: Math.max(0, Math.min(box.left, containerWidth - (box.width || INITIAL_INPUT_SIZE.width))),
@@ -133,7 +132,7 @@ const List = () => {
   const fetchDocuments = async () => {
     try {
       const response = await axios.get(
-        type ? `${apiUrl}/api/documents/?type=agreement` : `${apiUrl}/api/documents/`,
+        type ? `${apiUrl}/api/documents?type=agreement` : `${apiUrl}/api/documents`,
       )
       setDocuments(response.data.document)
       setLoading(false)
@@ -174,7 +173,7 @@ const List = () => {
     }
     try {
       const response = await axios.get(`${apiUrl}/api/documents/pending/${document.id}/`)
-      const doc = response.data.document[ 0 ]
+      const doc = response.data.document[0]
       // const doc = fs.readFileSync('../../../../../../Downloads/21583473018.pdf',{ encoding: "base64" }  )
       // console.log(doc)
 
@@ -411,46 +410,46 @@ const List = () => {
     }
   }
 
-const renderPage = async (pageNumber, page) => {
-  if (!containerRef.current) return;
+  const renderPage = async (pageNumber, page) => {
+    if (!containerRef.current) return
 
-  // Clear previous canvas elements
-  while (containerRef.current.firstChild) {
-    containerRef.current.removeChild(containerRef.current.firstChild);
+    // Clear previous canvas elements
+    while (containerRef.current.firstChild) {
+      containerRef.current.removeChild(containerRef.current.firstChild)
+    }
+
+    // Create new canvas element
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+
+    try {
+      setIsRendering(true)
+      const containerWidth = containerRef.current.offsetWidth
+      const viewport = page.getViewport({ scale: 1 })
+      const scale = containerWidth / viewport.width
+      const scaledViewport = page.getViewport({ scale })
+
+      // Set canvas dimensions
+      canvas.width = scaledViewport.width
+      canvas.height = scaledViewport.height
+
+      // Render the page to the new canvas
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport,
+      }).promise
+
+      // Append the new canvas to the container
+      containerRef.current.appendChild(canvas)
+      setCurrentPage(pageNumber)
+    } catch (error) {
+      console.error('Error rendering page:', error)
+      toast.error('Failed to render PDF page.', { duration: 3000, position: 'top-right' })
+    } finally {
+      setIsRendering(false)
+      setCurrentRenderPromise(null)
+    }
   }
-
-  // Create new canvas element
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-
-  try {
-    setIsRendering(true);
-    const containerWidth = containerRef.current.offsetWidth;
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = containerWidth / viewport.width;
-    const scaledViewport = page.getViewport({ scale });
-
-    // Set canvas dimensions
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
-
-    // Render the page to the new canvas
-    await page.render({
-      canvasContext: context,
-      viewport: scaledViewport,
-    }).promise;
-
-    // Append the new canvas to the container
-    containerRef.current.appendChild(canvas);
-    setCurrentPage(pageNumber);
-  } catch (error) {
-    console.error('Error rendering page:', error);
-    toast.error('Failed to render PDF page.', { duration: 3000, position: 'top-right' });
-  } finally {
-    setIsRendering(false);
-    setCurrentRenderPromise(null);
-  }
-};
 
   const handleMouseDown = (index, type, page) => (e) => {
     e.preventDefault()
@@ -922,27 +921,29 @@ const renderPage = async (pageNumber, page) => {
     })
   }
 
-const renderThumbnail = useCallback((page, index) => {
-  const containerWidth = 100;
-  const viewport = page.getViewport({ scale: 1 });
-  const scale = containerWidth / viewport.width;
-  const scaledViewport = page.getViewport({ scale });
+  const renderThumbnail = useCallback(
+    (page, index) => {
+      const containerWidth = 100
+      const viewport = page.getViewport({ scale: 1 })
+      const scale = containerWidth / viewport.width
+      const scaledViewport = page.getViewport({ scale })
 
-  return (
-    <div key={`thumbnail-${index}-${Date.now()}`}>
-      <canvas
-        ref={(node) => {
-          if (node && !node.dataset.rendered) {
-            renderPDFPage(page, node, scaledViewport.width, scaledViewport.height);
-            node.dataset.rendered = 'true';
-          }
-        }}
-      />
-      <div>Page {index + 1}</div>
-    </div>
-  );
-}, [currentPage]);
-
+      return (
+        <div key={`thumbnail-${index}-${Date.now()}`}>
+          <canvas
+            ref={(node) => {
+              if (node && !node.dataset.rendered) {
+                renderPDFPage(page, node, scaledViewport.width, scaledViewport.height)
+                node.dataset.rendered = 'true'
+              }
+            }}
+          />
+          <div>Page {index + 1}</div>
+        </div>
+      )
+    },
+    [currentPage],
+  )
 
   const thumbnails = useMemo(() => {
     if (currentDocument?.path?.toLowerCase().endsWith('.pdf') && pdfPages.length) {
@@ -1117,7 +1118,7 @@ const renderThumbnail = useCallback((page, index) => {
                   <CTableHeaderCell scope="row">{index + 1}</CTableHeaderCell>
                   <CTableDataCell>{document.name}</CTableDataCell>
                   <CTableDataCell>
-                    <CButton
+                    {/* <CButton
                       color="primary"
                       onClick={() => {
                         setCurrentDocument(document)
@@ -1126,15 +1127,17 @@ const renderThumbnail = useCallback((page, index) => {
                       className="me-2"
                     >
                       Download with Fields
-                    </CButton>
-                    <a
-                      className="btn btn-outline-secondary"
+                    </CButton> */}
+                    <CButton
+                      // className="btn btn-outline-secondary"
+                      color="primary"
                       href={`${apiUrl}/public/storage/${document.path}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Download Original
-                    </a>
+                      {/* Download Original */}
+                      Download
+                    </CButton>
                   </CTableDataCell>
                   <CTableDataCell>
                     <CButton

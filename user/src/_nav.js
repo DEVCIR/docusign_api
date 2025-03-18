@@ -82,6 +82,16 @@ const _nav = [
     to: '/agreement/submit?type=agreement',
     icon: <CIcon icon={cilDrop} customClassName='nav-icon' />,
   },
+  {
+    component: CNavTitle,
+    name: '',
+  },
+  {
+    component: CNavItem,
+    name: 'Logout',
+    to: '/logout',
+    icon: <CIcon icon={cilDrop} customClassName='nav-icon' />,
+  },
 ]
 
 export default _nav

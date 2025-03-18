@@ -167,7 +167,7 @@ const Submit = () => {
                   <CTableDataCell>
                     <button
                       onClick={() =>
-                        window.open(`${apiUrl}/storage/${submission.pdfpath}`, '_blank')
+                        window.open(`${apiUrl}/public/storage/${submission.pdfpath}`, '_blank')
                       }
                       className='btn btn-outline-dark'
                       target='_blank'
@@ -219,7 +219,7 @@ const Submit = () => {
               <CButton
                 color='primary'
                 onClick={() =>
-                  window.open(`${apiUrl}/storage/${currentSubmission.pdfpath}`, '_blank')
+                  window.open(`${apiUrl}/public/storage/${currentSubmission.pdfpath}`, '_blank')
                 }
               >
                 Download PDF
