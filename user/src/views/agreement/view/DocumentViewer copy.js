@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas'
 import { apiUrl } from '../../../components/Config/Config'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import * as pdfjsLib from 'pdfjs-dist'
-import { Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import mammoth from 'mammoth'
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer'
 import { toast, Toaster } from 'sonner'
@@ -408,13 +408,11 @@ const Document = memo(({ containerRef, fileType = 'pdf', docs, pdfPages, renderP
       {fileType === 'pdf' &&
         pdfPages.map((page, index) => {
           const viewport = page.getViewport({ scale: 1 })
-          const aspectRatio = viewport.height / viewport.width // Calculate aspect ratio
-          // Unique ID for each canvas
-          const canvasId = `pdf-canvas-${index}`
+          const aspectRatio = viewport.height / viewport.width
+
           return (
-            <div key={index} style={{ marginBottom: '20px' }} className='pdf_canvas_load'>
+            <div key={index} style={{ marginBottom: '20px' }}>
               <div
-                className='pdf_canvas_seperate'
                 style={{
                   textAlign: 'center',
                   margin: '10px 0',
@@ -427,22 +425,19 @@ const Document = memo(({ containerRef, fileType = 'pdf', docs, pdfPages, renderP
                 Page {index + 1}
               </div>
               <canvas
-                id={canvasId}
-                className=''
+                data-page-index={index}
                 ref={(node) => {
                   if (node) {
-                    const containerWidth = node.parentElement.offsetWidth // Get container width
+                    const containerWidth = node.parentElement.offsetWidth
                     const canvasWidth = containerWidth
-                    const canvasHeight = canvasWidth * aspectRatio // Calculate height based on aspect ratio
+                    const canvasHeight = canvasWidth * aspectRatio
 
-                    // Set canvas dimensions
                     const pixelRatio = window.devicePixelRatio || 1
                     node.width = canvasWidth * pixelRatio
                     node.height = canvasHeight * pixelRatio
                     node.style.width = `${canvasWidth}px`
                     node.style.height = `${canvasHeight}px`
 
-                    // Render the PDF page
                     renderPDFPage(page, node, canvasWidth, canvasHeight)
                   }
                 }}
@@ -466,6 +461,7 @@ const Document = memo(({ containerRef, fileType = 'pdf', docs, pdfPages, renderP
     </div>
   )
 })
+
 const DocumentViewer = memo(() => {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
@@ -501,24 +497,12 @@ const DocumentViewer = memo(() => {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Memoize the PDF rendering to prevent re-renders on input changes
-  // const renderPDFPage = useCallback((page, canvas, width, height) => {
-  //   const viewport = page.getViewport({ scale: 1 })
-  //   const context = canvas.getContext('2d')
-  //   const renderContext = {
-  //     canvasContext: context,
-  //     viewport: viewport,
-  //   }
-  //   page.render(renderContext).promise.then(() => {
-  //     console.log(`Page rendered on canvas: ${canvas.id}`)
-  //   })
-  // }, [])
   const renderPDFPage = useCallback(async (page, canvas, width, height) => {
     if (!canvas) return
 
     const context = canvas.getContext('2d')
     const pixelRatio = window.devicePixelRatio || 1
 
-    // Set canvas dimensions
     canvas.width = width * pixelRatio
     canvas.height = height * pixelRatio
     canvas.style.width = `${width}px`
@@ -538,14 +522,17 @@ const DocumentViewer = memo(() => {
   }, [])
 
   useEffect(() => {
-    const link = document.createElement('link')
-    link.href = `https://fonts.googleapis.com/css2?family=${fonts
-      .map((font) => font.replace(/ /g, '+'))
-      .join('&family=')}&display=swap`
-    link.rel = 'stylesheet'
-    document.head.appendChild(link)
-    document.fonts.ready.then(() => setFontsLoaded(true))
-  }, [])
+    // Move the condition outside to prevent effect from running at all
+    if (!fontsLoaded && fonts.length > 0) {
+      const link = document.createElement('link')
+      link.href = `https://fonts.googleapis.com/css2?family=${fonts
+        .map((font) => font.replace(/ /g, '+'))
+        .join('&family=')}&display=swap`
+      link.rel = 'stylesheet'
+      document.head.appendChild(link)
+      document.fonts.ready.then(() => setFontsLoaded(true))
+    }
+  }, [fontsLoaded, fonts]) // Add proper dependencies
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -555,7 +542,7 @@ const DocumentViewer = memo(() => {
         setLoading(true)
         let url = isPublic
           ? `${apiUrl}/api/documents/public/${documentId}/${email}/${token}`
-          : `${apiUrl}/api/documents/pending/${documentId}`
+          : `${apiUrl}/api/user/documents/pending/${documentId}`
         url = type ? `${url}?type=agreement` : url
 
         const response = await axios.get(url)
@@ -807,7 +794,7 @@ const DocumentViewer = memo(() => {
 
       const url = isPublic
         ? `${apiUrl}/api/user/documents/${documentId}/public/submit`
-        : `${apiUrl}/api/user/documents/${documentId}/submit`
+        : `${apiUrl}/api/documents/${documentId}/submit`
 
       // const updatedFormData = { ...formData }; // Your existing form data
       const moreUpdatedFormData = (({ null: removedValue, ...rest }) => ({
@@ -844,7 +831,6 @@ const DocumentViewer = memo(() => {
       }
     } finally {
       setIsSubmitting(false)
-      navigate('/user/documents')
       // const url = window.location.href.replace(/\/view$/, '/submit')
       // window.location.href = url
     }

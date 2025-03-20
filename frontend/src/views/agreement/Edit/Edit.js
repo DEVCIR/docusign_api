@@ -667,7 +667,6 @@ const Edit = () => {
         ),
       ],
     }))
-    
   }
 
   const addSignatureBox = (fieldType) => (e) => {

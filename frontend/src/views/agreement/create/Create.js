@@ -36,44 +36,107 @@ import { MdOutlineWidgets } from 'react-icons/md'
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.js`
 
 // Memoized Document Component
+// export const Document = memo(
+//   ({ containerRef, fileType, docs, pdfPages, renderPDFPage, onMouseMove }) => {
+//     return (
+//       <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
+//         {fileType === 'pdf' &&
+//           pdfPages.map((page, index) => (
+//             <div key={index} style={{ marginBottom: '20px' }}>
+//               <div
+//                 style={{
+//                   textAlign: 'center',
+//                   margin: '10px 0',
+//                   position: 'absolute',
+//                   left: '0',
+//                   background: 'red',
+//                   padding: '10px',
+//                 }}
+//               >
+//                 Page {index + 1}
+//               </div>
+//               <canvas
+//                 data-page-index={index}
+//                 ref={(node) => {
+//                   if (node) {
+//                     const viewport = page.getViewport({ scale: 1 })
+//                     node.width = viewport.width
+//                     node.height = viewport.height
+//                     renderPDFPage(page, node, viewport.width, viewport.height)
+//                   }
+//                 }}
+//                 style={{
+//                   display: 'block',
+//                   width: '100%',
+//                   height: 'auto',
+//                   border: '1px solid #ccc',
+//                 }}
+//               />
+//             </div>
+//           ))}
+//         {fileType === 'docx' && (
+//           <DocViewer
+//             documents={docs}
+//             pluginRenderers={DocViewerRenderers}
+//             style={{ height: '100%', overflow: 'hidden' }}
+//           />
+//         )}
+//       </div>
+//     )
+//   },
+// )
 export const Document = memo(
   ({ containerRef, fileType, docs, pdfPages, renderPDFPage, onMouseMove }) => {
     return (
       <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
         {fileType === 'pdf' &&
-          pdfPages.map((page, index) => (
-            <div key={index} style={{ marginBottom: '20px' }}>
-              <div
-                style={{
-                  textAlign: 'center',
-                  margin: '10px 0',
-                  position: 'absolute',
-                  left: '0',
-                  background: 'red',
-                  padding: '10px',
-                }}
-              >
-                Page {index + 1}
+          pdfPages.map((page, index) => {
+            const viewport = page.getViewport({ scale: 1 })
+            const aspectRatio = viewport.height / viewport.width // Calculate aspect ratio
+
+            return (
+              <div key={index} style={{ marginBottom: '20px' }}>
+                <div
+                  style={{
+                    textAlign: 'center',
+                    margin: '10px 0',
+                    position: 'absolute',
+                    left: '0',
+                    background: 'red',
+                    padding: '10px',
+                  }}
+                >
+                  Page {index + 1}
+                </div>
+                <canvas
+                  data-page-index={index}
+                  ref={(node) => {
+                    if (node) {
+                      const containerWidth = node.parentElement.offsetWidth // Get container width
+                      const canvasWidth = containerWidth
+                      const canvasHeight = canvasWidth * aspectRatio // Calculate height based on aspect ratio
+
+                      // Set canvas dimensions
+                      const pixelRatio = window.devicePixelRatio || 1
+                      node.width = canvasWidth * pixelRatio
+                      node.height = canvasHeight * pixelRatio
+                      node.style.width = `${canvasWidth}px`
+                      node.style.height = `${canvasHeight}px`
+
+                      // Render the PDF page
+                      renderPDFPage(page, node, canvasWidth, canvasHeight)
+                    }
+                  }}
+                  style={{
+                    display: 'block',
+                    width: '100%', // Canvas takes 100% of container width
+                    height: 'auto', // Height is calculated dynamically
+                    border: '1px solid #ccc',
+                  }}
+                />
               </div>
-              <canvas
-                data-page-index={index}
-                ref={(node) => {
-                  if (node) {
-                    const viewport = page.getViewport({ scale: 1 })
-                    node.width = viewport.width
-                    node.height = viewport.height
-                    renderPDFPage(page, node, viewport.width, viewport.height)
-                  }
-                }}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  height: 'auto',
-                  border: '1px solid #ccc',
-                }}
-              />
-            </div>
-          ))}
+            )
+          })}
         {fileType === 'docx' && (
           <DocViewer
             documents={docs}
@@ -250,16 +313,40 @@ const Create = () => {
    * @param {number} width The width of the canvas
    * @param {number} height The height of the canvas
    */
+  // const renderPDFPage = useCallback(async (page, canvas, width, height) => {
+  //   if (!canvas) return
+  //   const context = canvas.getContext('2d')
+  //   canvas.width = width
+  //   canvas.height = height
+
+  //   try {
+  //     await page.render({
+  //       canvasContext: context,
+  //       viewport: page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width }),
+  //     }).promise
+  //   } catch (error) {
+  //     console.error('Error rendering page:', error)
+  //     toast.error('Failed to render PDF page.')
+  //   }
+  // }, [])
   const renderPDFPage = useCallback(async (page, canvas, width, height) => {
     if (!canvas) return
+
     const context = canvas.getContext('2d')
-    canvas.width = width
-    canvas.height = height
+    const pixelRatio = window.devicePixelRatio || 1
+
+    // Set canvas dimensions
+    canvas.width = width * pixelRatio
+    canvas.height = height * pixelRatio
+    canvas.style.width = `${width}px`
+    canvas.style.height = `${height}px`
 
     try {
       await page.render({
         canvasContext: context,
-        viewport: page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width }),
+        viewport: page.getViewport({
+          scale: (width * pixelRatio) / page.getViewport({ scale: 1 }).width,
+        }),
       }).promise
     } catch (error) {
       console.error('Error rendering page:', error)

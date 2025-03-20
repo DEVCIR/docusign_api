@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas'
 import { apiUrl } from '../../../components/Config/Config'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import * as pdfjsLib from 'pdfjs-dist'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useParams, useSearchParams } from 'react-router-dom'
 import mammoth from 'mammoth'
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer'
 import { toast, Toaster } from 'sonner'
@@ -407,6 +407,8 @@ const Document = memo(({ containerRef, fileType = 'pdf', docs, pdfPages, renderP
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
       {fileType === 'pdf' &&
         pdfPages.map((page, index) => {
+          const viewport = page.getViewport({ scale: 1 })
+          const aspectRatio = viewport.height / viewport.width // Calculate aspect ratio
           // Unique ID for each canvas
           const canvasId = `pdf-canvas-${index}`
           return (
@@ -429,10 +431,19 @@ const Document = memo(({ containerRef, fileType = 'pdf', docs, pdfPages, renderP
                 className=''
                 ref={(node) => {
                   if (node) {
-                    const viewport = page.getViewport({ scale: 1 })
-                    node.width = viewport.width
-                    node.height = viewport.height
-                    renderPDFPage(page, node, viewport.width, viewport.height)
+                    const containerWidth = node.parentElement.offsetWidth // Get container width
+                    const canvasWidth = containerWidth
+                    const canvasHeight = canvasWidth * aspectRatio // Calculate height based on aspect ratio
+
+                    // Set canvas dimensions
+                    const pixelRatio = window.devicePixelRatio || 1
+                    node.width = canvasWidth * pixelRatio
+                    node.height = canvasHeight * pixelRatio
+                    node.style.width = `${canvasWidth}px`
+                    node.style.height = `${canvasHeight}px`
+
+                    // Render the PDF page
+                    renderPDFPage(page, node, canvasWidth, canvasHeight)
                   }
                 }}
                 style={{
@@ -490,16 +501,40 @@ const DocumentViewer = memo(() => {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Memoize the PDF rendering to prevent re-renders on input changes
-  const renderPDFPage = useCallback((page, canvas, width, height) => {
-    const viewport = page.getViewport({ scale: 1 })
+  // const renderPDFPage = useCallback((page, canvas, width, height) => {
+  //   const viewport = page.getViewport({ scale: 1 })
+  //   const context = canvas.getContext('2d')
+  //   const renderContext = {
+  //     canvasContext: context,
+  //     viewport: viewport,
+  //   }
+  //   page.render(renderContext).promise.then(() => {
+  //     console.log(`Page rendered on canvas: ${canvas.id}`)
+  //   })
+  // }, [])
+  const renderPDFPage = useCallback(async (page, canvas, width, height) => {
+    if (!canvas) return
+
     const context = canvas.getContext('2d')
-    const renderContext = {
-      canvasContext: context,
-      viewport: viewport,
+    const pixelRatio = window.devicePixelRatio || 1
+
+    // Set canvas dimensions
+    canvas.width = width * pixelRatio
+    canvas.height = height * pixelRatio
+    canvas.style.width = `${width}px`
+    canvas.style.height = `${height}px`
+
+    try {
+      await page.render({
+        canvasContext: context,
+        viewport: page.getViewport({
+          scale: (width * pixelRatio) / page.getViewport({ scale: 1 }).width,
+        }),
+      }).promise
+    } catch (error) {
+      console.error('Error rendering page:', error)
+      toast.error('Failed to render PDF page.')
     }
-    page.render(renderContext).promise.then(() => {
-      console.log(`Page rendered on canvas: ${canvas.id}`)
-    })
   }, [])
 
   useEffect(() => {
@@ -809,8 +844,9 @@ const DocumentViewer = memo(() => {
       }
     } finally {
       setIsSubmitting(false)
-      const url = window.location.href.replace(/\/view$/, '/submit')
-      window.location.href = url
+      navigate('/user/documents')
+      // const url = window.location.href.replace(/\/view$/, '/submit')
+      // window.location.href = url
     }
   }
 
