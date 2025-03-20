@@ -16,7 +16,7 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilUser } from '@coreui/icons'
-import { apiUrl } from '../../../components/Config/Config';
+import { apiUrl } from '../../../components/Config/Config'
 
 const Login = () => {
   const [email, setEmail] = useState('admin@example.com')
@@ -31,12 +31,16 @@ const Login = () => {
     setError(null)
 
     try {
-      const response = await axios.post(`${apiUrl}/api/admin/login`, {
-        email,
-        password,
-      }, {
-        withCredentials: true,  // Include credentials in the request
-      });
+      const response = await axios.post(
+        `${apiUrl}/api/admin/login`,
+        {
+          email,
+          password,
+        },
+        {
+          withCredentials: true, // Include credentials in the request
+        },
+      )
       // Save token or any response data if needed
       localStorage.setItem('token', response.data.access_token)
       navigate('/dashboard') // Redirect to the dashboard or another page on success

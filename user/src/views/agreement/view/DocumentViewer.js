@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, { useEffect, useRef, useState, memo, useCallback, useMemo } from 'react'
 import { CButton, CForm, CFormInput, CFormLabel, CModal, CSpinner } from '@coreui/react'
 import axios from 'axios'
@@ -454,8 +455,7 @@ const Document = memo(({ containerRef, fileType = 'pdf', docs, pdfPages, renderP
     </div>
   )
 })
-
-const DocumentViewer = () => {
+const DocumentViewer = memo(() => {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
   const email = searchParams.get('email')
@@ -927,7 +927,7 @@ const DocumentViewer = () => {
             minHeight: '1222.46px',
             maxWidth: '945px',
             position: 'relative',
-            minHeight: '800px',
+            // minHeight: '800px',
           }}
         >
           <div style={{}} className='aDocument'>
@@ -942,7 +942,7 @@ const DocumentViewer = () => {
                     top: `${parseFloat(box.top)}%`,
                     left: `${parseFloat(box.left)}%`,
                     zIndex: 1,
-                    padding: '2px 5px',
+                    padding: '0px !important',
                     border: '1px dashed #000',
                     width: box.width ? `${parseFloat(box.width)}%` : '350px',
                     height: box.height ? `${parseFloat(box.height)}%` : '50px',
@@ -950,8 +950,13 @@ const DocumentViewer = () => {
                     // @prettier-ignore
                     fontSize: `${box.height - box.height * 10}px !important`,
                     overflow: 'hidden',
-                    textAlign: 'center',
                     backgroundColor: 'White',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap', // Prevents text from wrapping
+                    textOverflow: 'ellipsis', // Adds "..." if the text overflows
                   }}
                 >
                   {formData[box.id]}
@@ -969,39 +974,42 @@ const DocumentViewer = () => {
                     top: `${parseFloat(box.top)}%`,
                     left: `${parseFloat(box.left)}%`,
                     width: `${box.width}%`,
-                    height: `${box.height}%`,
+                    height: `calc(${box.height}%+ 1rem)`,
                     zIndex: 1,
                     backgroundColor: 'white',
                     border: '1px solid #000',
                   }}
                 >
                   {formData[box.id] ? (
-                    <img
-                      src={formData[box.id]}
-                      alt='Signature'
-                      style={{
-                        width: `100%`,
-                        height: `100%`,
-                        objectFit: 'contain',
-                      }}
-                    />
+                    <>
+                      <img
+                        src={formData[box.id]}
+                        alt='Signature'
+                        style={{
+                          width: `100%`,
+                          height: `100%`,
+                          objectFit: 'contain',
+                        }}
+                      />
+                      <span key={index + 'key'}>{formData[box.id + 'key']}</span>
+                    </>
                   ) : (
-                    <div
-                      style={{
-                        width: `100%`,
-                        height: `100%`,
-                        border: '1px dashed #000',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#666',
-                        backgroundColor: 'white',
-                      }}
-                    >
-                      {/* <sub>signature</sub> */}
-                    </div>
+                    <>
+                      <div
+                        style={{
+                          width: `100%`,
+                          height: `100%`,
+                          border: '1px dashed #000',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#666',
+                          backgroundColor: 'white',
+                        }}
+                      ></div>
+                      <span key={index + 'key'}>{formData[box.id + 'key']}</span>
+                    </>
                   )}
-                  <span key={index + 'key'}>{formData[box.id + 'key']}</span>
                 </div>
               ))}
             <Document
@@ -1073,6 +1081,8 @@ const DocumentViewer = () => {
       </div>
     </>
   )
-}
+})
+Document.displayName = 'Document'
+DocumentViewer.displayName = 'DocumentViewer'
 
-export default memo(DocumentViewer)
+export default DocumentViewer

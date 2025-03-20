@@ -49,7 +49,7 @@ const _nav = [
   },
   {
     component: CNavItem,
-    name: 'Add Templtes',
+    name: 'Add Templates',
     to: '/document/add',
     icon: <CIcon icon={cilDrop} customClassName="nav-icon" />,
   },
