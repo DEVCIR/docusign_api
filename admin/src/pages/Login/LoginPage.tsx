@@ -1,7 +1,6 @@
 "use client";
 
-import type React from "react";
-
+import React, {JSX, useEffect} from "react";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react"; // Add these imports
@@ -12,12 +11,15 @@ import { apiUrl } from "../../config/api";
 import axios from "axios";
 import { AuthResponse } from "./Login";
 
-const LoginPage = () => {
+const LoginPage:React.FC = () => {
   const navigate = useNavigate();
-  // const token = localStorage.getItem("token");
-  // if (token) {
-  //   navigate("/dashboard");
-  // }
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]); // `navigate` is stable, no unnecessary re-renders
   const [email, setEmail] = useState<string>("admin@example.com");
   const [password, setPassword] = useState<string>("password123");
   const [rememberMe, setRememberMe] = useState<boolean>(false);
